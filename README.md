@@ -1,1 +1,2 @@
-# D365-BC-on-Azure-Setup
+# Dynamics 365 Business Central on Azure Setup
+Well, I'll update this README asap. But in the meantime, please have a log at [this blog-post series](http://simonofhh.tech/2020/01/12/load-balanced-dynamics-365-business-central-scale-sets-on-azure-introduction/). IF you happen to read this right away: I'm planning on publishing the blog post latest by January 15th. So you might need to be a little bit patient.
