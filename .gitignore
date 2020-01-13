@@ -1,0 +1,3 @@
+# Ignore folder "Private"
+settings.ps1
+*-temp.ps1
