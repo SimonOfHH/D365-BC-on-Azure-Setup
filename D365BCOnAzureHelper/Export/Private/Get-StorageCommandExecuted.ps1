@@ -21,9 +21,12 @@ function Global:Get-StorageCommandExecutionLog {
     )
     process {
         Write-Verbose "Loading execution log..."
+        if ($CommandRow.GlobalExecuteOnce -eq $true){
+            $ExecutedByName = "*"            
+        }
         $logTable = Get-AzStorageTable -Name $LogTableName -Context $storageAccountContext.Context
         $logCloudTable = $logTable.CloudTable
-        $row = Get-AzTableRow -Table $logCloudTable | Where-Object { ($_.LogPartitionKey -eq $CommandRow.PartitionKey) -and ($_.LogRowKey -eq $CommandRow.RowKey) -and ($_.LogCommand -eq $CommandRow.Command) -and ($_.LogComputerName -eq $ExecutedByName) }
+        $row = Get-AzTableRow -Table $logCloudTable | Where-Object { ($_.LogPartitionKey -eq $CommandRow.PartitionKey) -and ($_.LogRowKey -eq $CommandRow.RowKey) -and ($_.LogCommand -eq $CommandRow.Command) -and ($_.LogObjectName -eq $CommandRow.ObjectName) -and ($_.LogComputerName -like $ExecutedByName) -and ($_.LogObsoleteNewInstance -eq $false) }
         $row        
     }
 }

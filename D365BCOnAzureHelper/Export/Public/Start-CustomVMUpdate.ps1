@@ -32,11 +32,16 @@ function Start-CustomVMUpdate {
         $KeyVaultName,
         [Parameter(Mandatory = $true)]
         [string]
-        $StorageTableNameInfrastructureData
+        $StorageTableNameInfrastructureData,
+        [Parameter(Mandatory = $false)]
+        [string]
+        $NewInstanceMarkerFilename
     )
     process {
         Write-Verbose "Starting auto update..."
-
+        if ($NewInstanceMarkerFilename){
+            Write-Verbose "Indicator for 'New Instance' is set."
+        }
         # Uses managed identity to connect to Azure Account
         Connect-FromMachineToAzAccount
         
@@ -56,6 +61,16 @@ function Start-CustomVMUpdate {
 
         $rows = Get-CommandsFromStorageTable -StorageAccountContext $storageAccountCtx -TableName $TableNameSetup -ObjectName $ObjectName
         foreach ($row in $rows) {
+            if ($row.Command -ne 'SetupNotDone'){
+                if (($NewInstanceMarkerFilename) -and (Test-Path $NewInstanceMarkerFilename)){
+                    # It's possible that we have at one point 2 instances, then remove one and later add it again
+                    # The newly added instance might have the same computer name as a previous one and "previous" commands wouldn't be executed again
+                    # So this function will mark the previous ones as "Obsolete"
+                    Set-StorageCommandsObsolete -StorageAccountContext $storageAccountCtx -LogTableName $TableNameLog -LogObjectName $ObjectName -LogComputerName $env:computername
+                    # Delete File after that, so that we know, that everything is setup as expected
+                    Remove-Item $NewInstanceMarkerFilename -Force | Out-Null
+                }
+            }
             Write-Verbose "Checking if Command $($row.Command) was already executed"
             if (Get-StorageCommandExecutionLog -StorageAccountContext $storageAccountCtx -LogTableName $TableNameLog -CommandRow $row -ExecutedByName $env:computername) {
                 Write-Verbose "Command $($row.Command) was already executed. Skipping to next one."
