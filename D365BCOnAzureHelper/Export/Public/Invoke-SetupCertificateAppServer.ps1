@@ -1,4 +1,4 @@
-function Invoke-UpdateInstances {
+function Invoke-SetupCertificateAppServer {
     [CmdletBinding()]
     <#
     .SYNOPSIS
@@ -17,45 +17,50 @@ function Invoke-UpdateInstances {
         $StorageTableNameEnvironments,
         [Parameter(Mandatory = $true)]
         [string]
-        $StorageTableNameEnvironmentDefaults,
+        $StorageTableNameEnvironmentDefaults,        
         [Parameter(Mandatory = $true)]
         [string]
         $TypeFilter,
+        [Parameter(Mandatory = $true)]
+        [ValidateSet('ServiceInstance', 'Webclient')]
         [string]
-        $Parameter2,
+        $CertificateType,
         [bool]
         $RestartService
     )
     process {
-        Import-NecessaryModules -Type Application
+        Write-Verbose "Setting up certificate..."
+        Write-Verbose "Checking if certificate exists..."
+        $certificate = Get-AzKeyVaultCertificate -VaultName $KeyVaultName -Name $CertificateType -ErrorAction SilentlyContinue        
+        if (-not($certificate)){
+            Write-Verbose "Certificate does not exist. Exiting here."
+            return
+        }
         
-        $environments = Get-EnvironmentsFromStorage -StorageAccountContext $StorageAccountContext -TableNameEnvironments $StorageTableNameEnvironments -TableNameDefaults $StorageTableNameEnvironmentDefaults -TypeFilter $TypeFilter -ConfigType Application
+        Import-NecessaryModules -Type Application        
+
+        $certificateInfo = Save-AzureCertificateToLocalFile -KeyVaultName $KeyVaultName -Certificate $certificate -CertificateType $CertificateType
+        # Add Cert to My-Store
+        Write-Verbose "Importing certificate to Personal-store..."
+        Import-PfxCertificate -FilePath $certificateInfo.Path -CertStoreLocation Cert:\LocalMachine\My -Password (ConvertTo-SecureString -String $certificateInfo.Password -AsPlainText -Force)
+        # Add Cert to Trusted Root-Store
+        Write-Verbose "Importing certificate to Trusted Root-store..."
+        Import-PfxCertificate -FilePath $certificateInfo.Path -CertStoreLocation Cert:\LocalMachine\Root -Password (ConvertTo-SecureString -String $certificateInfo.Password -AsPlainText -Force)
+
+        # Update Service Instances
+        $environments = Get-EnvironmentsFromStorage -StorageAccountContext $StorageAccountContext -TableNameEnvironments $StorageTableNameEnvironments -TableNameDefaults $StorageTableNameEnvironmentDefaults -TypeFilter $TypeFilter -ConfigType Application        
         foreach ($environment in $environments) {
             if (Get-NavServerInstance -ServerInstance $environment.ServerInstance) {
                 $config = Get-NAVServerConfiguration -ServerInstance $environment.ServerInstance
-
                 # Convert Result to HashTable
                 $currentConf = @{ }
                 $config | ForEach-Object { $currentConf[$_.key] = $_.value }
 
                 $updated = $false
-                $updated = $updated -or (Set-NAVConfigurationIfDifferent -ServerInstance $environment.ServerInstance -KeyName DeveloperServicesPort -KeyValue $environment.DeveloperServicesPort -CurrentConfiguration $currentConf -Verbose)
-                $updated = $updated -or (Set-NAVConfigurationIfDifferent -ServerInstance $environment.ServerInstance -KeyName ODataServicesPort -KeyValue $environment.OdataServicesPort -CurrentConfiguration $currentConf -Verbose)
-                $updated = $updated -or (Set-NAVConfigurationIfDifferent -ServerInstance $environment.ServerInstance -KeyName SOAPServicesPort -KeyValue $environment.SoapServicesPort -CurrentConfiguration $currentConf -Verbose)
-                $updated = $updated -or (Set-NAVConfigurationIfDifferent -ServerInstance $environment.ServerInstance -KeyName ClientServicesCredentialType -KeyValue $environment.Authentication -CurrentConfiguration $currentConf -Verbose)
-
-                $params = @{KeyVaultName = $KeyVaultName}
-                if (-not([string]::IsNullOrEmpty($environment.KVCredentialIdentifier))){
-                    $params.Add("KVIdentifier", $environment.KVCredentialIdentifier)
-                }
-                $credentialsObject = Get-ServiceUserCredentialsObject @params
-                $serviceAccount = (Get-NavServerInstance $environment.ServerInstance).ServiceAccount
-                if ($serviceAccount -ne $credentialsObject.UserName) {
-                    Set-NAVServerInstance -ServerInstance $environment.ServerInstance -ServiceAccount User -ServiceAccountCredential $credentialsObject | Out-Null
-                    $updated = $true
-                }
-
-                foreach ($key in $environment.Settings.Keys) {
+                $updated = $updated -or (Set-NAVConfigurationIfDifferent -ServerInstance $environment.ServerInstance -KeyName ServicesCertificateThumbprint -KeyValue $certificateInfo.Thumbprint -CurrentConfiguration $currentConf -Verbose)
+                
+                # Update SSL-related settings
+                foreach ($key in $environment.Settings.Keys | Where-Object {$_ -like '*SSL*'}) {
                     if ((-not([string]::IsNullOrEmpty($key))) -and (-not([string]::IsNullOrEmpty($environment.Settings[$key])))) {
                         $skipUpdate = $false
                         if ($key.ToString().Contains("SSL")) {
@@ -72,8 +77,9 @@ function Invoke-UpdateInstances {
                         }
                     }
                 }
-                if ($updated -and ($RestartService)) {
-                    Write-Verbose "Restarting service"
+
+                if ($updated -and $RestartService) {
+                    Write-Verbose "Restarting service $($environment.ServerInstance)"
                     Restart-NAVServerInstance -ServerInstance $environment.ServerInstance
                 }
             }

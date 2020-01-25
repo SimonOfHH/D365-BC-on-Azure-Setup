@@ -26,17 +26,18 @@ function Global:Set-StorageCommandExecuted {
         $lastRow = Get-AzTableRow -Table $logCloudTable | Select-Object -Last 1
 
         $properties = @{ 
-            PartitionKey         = 0
-            RowKey               = 0
-            LogPartitionKey      = $CommandRow.PartitionKey
-            LogRowKey            = $CommandRow.RowKey
-            LogCommand           = $CommandRow.Command
-            LogObjectName        = $CommandRow.ObjectName
-            LogComputerName      = $ExecutedByName
-            LogParameter1        = $CommandRow.Parameter1
-            LogParameter2        = $CommandRow.Parameter2
-            LogRestartNecessary  = $CommandRow.RestartNecessary
-            LogGlobalExecuteOnce = $CommandRow.GlobalExecuteOnce
+            PartitionKey           = 0
+            RowKey                 = 0
+            LogPartitionKey        = $CommandRow.PartitionKey
+            LogRowKey              = $CommandRow.RowKey
+            LogCommand             = $CommandRow.Command
+            LogObjectName          = $CommandRow.ObjectName
+            LogComputerName        = $ExecutedByName
+            LogParameter1          = $CommandRow.Parameter1
+            LogParameter2          = $CommandRow.Parameter2
+            LogRestartNecessary    = $CommandRow.RestartNecessary
+            LogGlobalExecuteOnce   = $CommandRow.GlobalExecuteOnce
+            LogObsoleteNewInstance = $false
         }        
         if ($null -eq $properties.LogParameter1) {
             $properties.LogParameter1 = ""

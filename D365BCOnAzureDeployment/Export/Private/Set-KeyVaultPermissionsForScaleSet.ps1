@@ -23,7 +23,7 @@ function Global:Set-KeyVaultPermissionsForScaleSet {
             Write-Verbose "KeyVault $KeyVaultName does not exists. Stopping here."
             return
         }
-        Set-AzKeyVaultAccessPolicy -VaultName $KeyVaultName -ResourceGroupName $ResourceGroupName -ObjectId $VMSS.Identity.PrincipalId -PermissionsToKeys get,list -PermissionsToSecrets get,list
+        Set-AzKeyVaultAccessPolicy -VaultName $KeyVaultName -ResourceGroupName $ResourceGroupName -ObjectId $VMSS.Identity.PrincipalId -PermissionsToKeys get,list -PermissionsToSecrets get,list -PermissionsToCertificates get,list,getissuers,listissuers
         Write-Verbose "Done."
     }    
 }

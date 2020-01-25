@@ -39,14 +39,20 @@ function Start-CustomVMUpdate {
     )
     process {
         Write-Verbose "Starting auto update..."
-        if ($NewInstanceMarkerFilename){
+        if ($NewInstanceMarkerFilename) {
             Write-Verbose "Indicator for 'New Instance' is set."
         }
         # Uses managed identity to connect to Azure Account
         Connect-FromMachineToAzAccount
         
+        # The current instance might still be in creation mode and might also automatically restart during this state
+        # This will wait until the instance is marked as "ProvisioningState"="Succeeded"
+        Wait-ForInstanceAvailability -ResourceGroupName $ResourceGroupName -ScaleSetName $ObjectName -NewInstanceMarkerFilename $NewInstanceMarkerFilename -Verbose:$Verbose
+
         # Disable Internet Explorer Enhanced Security Configuration (for Admins only) - because it's annoying
-        Disable-InternetExplorerESC
+        if ($NewInstanceMarkerFilename){
+            Disable-InternetExplorerESC
+        }
 
         Write-Verbose "Loading pending commands..."
         $storageAccount = Get-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName
@@ -61,8 +67,8 @@ function Start-CustomVMUpdate {
 
         $rows = Get-CommandsFromStorageTable -StorageAccountContext $storageAccountCtx -TableName $TableNameSetup -ObjectName $ObjectName
         foreach ($row in $rows) {
-            if ($row.Command -ne 'SetupNotDone'){
-                if (($NewInstanceMarkerFilename) -and (Test-Path $NewInstanceMarkerFilename)){
+            if ($row.Command -ne 'SetupNotDone') {
+                if (($NewInstanceMarkerFilename) -and (Test-Path $NewInstanceMarkerFilename)) {
                     # It's possible that we have at one point 2 instances, then remove one and later add it again
                     # The newly added instance might have the same computer name as a previous one and "previous" commands wouldn't be executed again
                     # So this function will mark the previous ones as "Obsolete"
@@ -199,8 +205,27 @@ function Start-CustomVMUpdate {
                     }
                     Invoke-AddUsers @params -Verbose:$Verbose
                 }
-                # Add "UpdateCertificate"
-                # Add "UpdateWebCertificate"                
+                'SetupCertificate' {
+                    $params = @{
+                        StorageAccountContext               = $storageAccountCtx
+                        KeyVaultName                        = $KeyVaultName
+                        StorageTableNameEnvironments        = $TableNameEnvironments 
+                        StorageTableNameEnvironmentDefaults = $TableNameEnvironmentDefaults 
+                        TypeFilter                          = $row.Parameter1
+                        CertificateType                     = ""
+                        RestartService                      = $row.RestartNecessary
+                    }
+                    switch (Get-MachineInstanceType -InfrastructureData $infrastructureData) {
+                        'Application' {
+                            $params.CertificateType = "ServiceInstance"
+                            Invoke-SetupCertificateAppServer @params -Verbose:$Verbose
+                        }
+                        'Web' { 
+                            $params.CertificateType = "Webclient"
+                            Invoke-SetupCertificateWebServer @params -Verbose:$Verbose
+                        }
+                    }
+                }
                 default {
                     Write-Verbose "Not implemented yet."
                 }                

@@ -29,7 +29,7 @@ function Global:Set-NAVConfigurationIfDifferent {
                 Write-Verbose "        Old Value: $($CurrentConfiguration[$KeyName].ToString())"
                 Write-Verbose "        New Value: $($KeyValue.ToString())"
             }
-            Set-NAVServerConfiguration -ServerInstance $ServerInstance -KeyName $KeyName -KeyValue $KeyValue
+            Set-NAVServerConfiguration -ServerInstance $ServerInstance -KeyName $KeyName -KeyValue $KeyValue            
             $true
         }
         else {

@@ -29,31 +29,32 @@ function Invoke-CreateInstances {
         foreach ($environment in $environments) {
             if (-not (Get-NavServerInstance -ServerInstance $environment.ServerInstance)) {
                 Write-Verbose "Creating instance: $($environment.ServerInstance)"
-                New-NAVServerInstance $environment.ServerInstance `
+                
+                $output = New-NAVServerInstance $environment.ServerInstance `
                     -DatabaseServer $environment.DatabaseServer  `
                     -DatabaseInstance $environment.DatabaseInstance  `
                     -Databasename $environment.Databasename `
                     -ClientServicesPort $environment.ClientServicesPort   `
                     -ManagementServicesPort $environment.ManagementServicesPort `
                     -SOAPServicesPort $environment.SoapServicesPort   `
-                    -ODataServicesPort $environment.OdataServicesPort
-                            
+                    -ODataServicesPort $environment.OdataServicesPort -Verbose:$Verbose
+                
                 Write-Verbose "Changing port-configuration..."
-                Set-NAVServerConfiguration -ServerInstance $environment.ServerInstance -KeyName DeveloperServicesPort -KeyValue $environment.DeveloperServicesPort
+                Set-NAVServerConfiguration -ServerInstance $environment.ServerInstance -KeyName DeveloperServicesPort -KeyValue $environment.DeveloperServicesPort -Verbose:$Verbose
                 Write-Verbose "Updating authentication-method..."
-                Set-NAVServerConfiguration -ServerInstance $environment.ServerInstance -KeyName ClientServicesCredentialType -KeyValue $environment.Authentication
+                Set-NAVServerConfiguration -ServerInstance $environment.ServerInstance -KeyName ClientServicesCredentialType -KeyValue $environment.Authentication -Verbose:$Verbose
 
                 Write-Verbose "Updating service-account..."
-                $params = @{KeyVaultName = $KeyVaultName}
-                if (-not([string]::IsNullOrEmpty($environment.KVCredentialIdentifier))){
+                $params = @{KeyVaultName = $KeyVaultName }
+                if (-not([string]::IsNullOrEmpty($environment.KVCredentialIdentifier))) {
                     $params.Add("KVIdentifier", $environment.KVCredentialIdentifier)
                 }
-                $credentialsObject = Get-ServiceUserCredentialsObject @params
-                Set-NAVServerInstance -ServerInstance $environment.ServerInstance -ServiceAccount User -ServiceAccountCredential $credentialsObject
+                $credentialsObject = Get-ServiceUserCredentialsObject @params -Verbose:$Verbose
+                Set-NAVServerInstance -ServerInstance $environment.ServerInstance -ServiceAccount User -ServiceAccountCredential $credentialsObject -Verbose:$Verbose
 
                 foreach ($key in $environment.Settings.Keys) {
                     if ((-not([string]::IsNullOrEmpty($key))) -and (-not([string]::IsNullOrEmpty($environment.Settings[$key])))) {
-                        Set-NAVServerConfiguration -ServerInstance $environment.ServerInstance -KeyName $key -KeyValue $environment.Settings[$key]
+                        Set-NAVServerConfiguration -ServerInstance $environment.ServerInstance -KeyName $key -KeyValue $environment.Settings[$key] -Verbose:$Verbose
                     }
                 }
                 Write-Verbose "Restarting service"
