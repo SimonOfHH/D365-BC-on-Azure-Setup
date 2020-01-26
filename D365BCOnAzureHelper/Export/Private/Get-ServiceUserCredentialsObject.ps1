@@ -1,4 +1,4 @@
-function Get-ServiceUserCredentialsObject {
+function Global:Get-ServiceUserCredentialsObject {
     [CmdletBinding()]
     <#
     .SYNOPSIS
