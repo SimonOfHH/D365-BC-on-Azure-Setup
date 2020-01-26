@@ -232,5 +232,6 @@ function Start-CustomVMUpdate {
             }
             Set-StorageCommandExecuted -CommandRow $row -ExecutedByName $env:computername -StorageAccountContext $storageAccountCtx -LogTableName $TableNameLog
         }
+        Write-Verbose "Update complete"
     }
 }
