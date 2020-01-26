@@ -111,14 +111,14 @@ function New-ScaleSet {
                 }
             }
             New-AzResourceGroupDeployment @deployParams | Out-Null
-        } catch {
+        }
+        catch {
 
         }
-        Write-Verbose "Sleeping for 30 seconds so that the managed identity has time to populate..."
-        Start-Sleep -Seconds 30
-
-        Write-Verbose "Assigning access role to managed identity of VM Scale Set..."
+        Write-Verbose "Assigning access roles to managed identity of VM Scale Set..."
         $VMSS = Get-AzVmss -ResourceGroupName $ResourceGroupName -VMScaleSetName $ScaleSetName
+        Wait-ForNewlyCreatedIdentity -ResourceGroupName $ResourceGroupName -ObjectId $VMSS.Identity.PrincipalId -Verbose:$Verbose
+                
         Write-Verbose "Assigning role 'Reader' on Resource Group-level..."
         New-AzRoleAssignment -ObjectId $VMSS.Identity.PrincipalId -RoleDefinitionName "Reader" -ResourceGroupName $ResourceGroupName | Out-Null        
         Write-Verbose "Assigning role 'Contributor' on Storage Account-level..."
