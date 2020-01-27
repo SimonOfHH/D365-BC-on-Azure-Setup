@@ -12,7 +12,7 @@ function New-ApplicationGateway {
         $ResourceGroupName,
         [Parameter(Mandatory = $true)]
         [string]
-        $ResourceLocation,        
+        $ResourceLocation,
         [Parameter(Mandatory = $true)]
         [string]
         $ApplicationGatewayName,
@@ -91,14 +91,23 @@ function New-ApplicationGateway {
         $storageAccountContext = $storageAccount.Context
         $environments = Get-EnvironmentsFromStorage -StorageAccountContext $storageAccountContext -TableNameEnvironments $TableNameEnvironments -TypeFilter $EnvironmentTypeFilter -EnvironmentsOnly -Verbose:$Verbose
 
-        $handleSslSetup = $false
+        $params = @{
+            ResourceGroupName      = $ResourceGroupName
+            ResourceLocation       = $ResourceLocation
+            ApplicationGatewayName = $ApplicationGatewayName
+            KeyVaultName           = $KeyVaultName
+        }
+        $SslSetup = Get-ApplicationGatewaySslSetupAndIdentity @params
+
+        <#
+        $SslSetup.HandleSSL = $false
         if ($KeyVaultName) {
             $certificate = Get-AzKeyVaultCertificate -VaultName $KeyVaultName -Name "ApplicationGateway" -ErrorAction SilentlyContinue
             if ($certificate) {
-                $handleSslSetup = $true
+                $SslSetup.HandleSSL = $true
             }
         }
-        if ($handleSslSetup) {
+        if ($SslSetup.HandleSSL) {
             Write-Verbose "Retrieving certificate from KeyVault"
             $secret = Get-AzKeyVaultSecret -VaultName $KeyVaultName -Name "ApplicationGateway"
             $secretId = $secret.Id.Replace($secret.Version, "") # https://<keyvaultname>.vault.azure.net/secrets/
@@ -107,7 +116,7 @@ function New-ApplicationGateway {
             # Identity is needed, to be able to read from KeyVault
             Write-Verbose "Generating identity for Application Gateway, to be able to read from KeyVault"
             $Identity = Get-AzUserAssignedIdentity -Name "$ApplicationGatewayName-Identity01" -ResourceGroupName $ResourceGroupName -ErrorAction SilentlyContinue
-            if (-not($Identity)){
+            if (-not($Identity)) {
                 $Identity = New-AzUserAssignedIdentity -Name "$ApplicationGatewayName-Identity01" -ResourceGroupName $ResourceGroupName -Location $ResourceLocation
             }
             Wait-ForNewlyCreatedIdentity -ResourceGroupName $ResourceGroupName -ObjectId $Identity.PrincipalId  -Verbose:$Verbose
@@ -115,112 +124,83 @@ function New-ApplicationGateway {
             $AppgwIdentity = New-AzApplicationGatewayIdentity -UserAssignedIdentity $Identity.Id
             Write-Verbose "Updating KeyVault-access policy for new identity"
             Set-AzKeyVaultAccessPolicy -VaultName $KeyVaultName -ResourceGroupName $ResourceGroupName -ObjectId $Identity.PrincipalId -PermissionsToKeys get -PermissionsToSecrets get -PermissionsToCertificates get 
-        }        
-
-        Write-Verbose "Setting up Application Gateway-configuration for $ApplicationGatewayName..."
-        Write-Verbose "Getting VirtualNetwork $VirtualNetworkName..."
-        $VNet = Get-AzVirtualNetwork -Name $VirtualNetworkName -ResourceGroupName $VirtualNetworkResourceGroupName
-        Write-Verbose "Getting SubnetConfiguration $SubnetName..."
-        $Subnet = Get-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $VNet -ErrorAction SilentlyContinue
-        if (-not($Subnet)) {
-            Write-Verbose "Adding Subnet $SubnetName to Virtual Network $VirtualNetworkName"
-            $VNet = Add-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $VNet -AddressPrefix $SubnetAddressPrefix -WarningAction SilentlyContinue
-            $VNet | Set-AzVirtualNetwork | Out-Null
-            $VNet = Get-AzVirtualNetwork -Name $VirtualNetworkName -ResourceGroupName $VirtualNetworkResourceGroupName
-            $Subnet = Get-AzVirtualNetworkSubnetConfig -Name $SubnetName -VirtualNetwork $VNet
         }
-        Write-Verbose "Adding IPConfiguration..."
-        $GatewayIPconfig = New-AzApplicationGatewayIPConfiguration -Name "GatewayIpConfig01" -Subnet $Subnet
+        #>
+        Write-Verbose "Setting up Application Gateway-configuration for $ApplicationGatewayName..."
+        $params = @{
+            VirtualNetworkResourceGroupName = $VirtualNetworkResourceGroupName
+            VirtualNetworkName              = $VirtualNetworkName
+            SubnetName                      = $SubnetName
+            SubnetAddressPrefix             = $SubnetAddressPrefix
+        }
+        $NetworkSetup = New-ApplicationGatewayNetworkSetup @params -IncludeSsl:$SslSetup.HandleSSL -Verbose:$Verbose
+
         Write-Verbose "Adding BackendAddressPool..."
         $Pool = New-AzApplicationGatewayBackendAddressPool -Name $BackendPoolName
-        Write-Verbose "Adding HealthProbes and HttpSettings..."
-        $Probes = @()
-        $HttpSettings = @()
-        $responsematch = New-AzApplicationGatewayProbeHealthResponseMatch -StatusCode "200-399"
-        $ProbeGeneral = New-AzApplicationGatewayProbeConfig -Name "IsServerAlive" -Protocol Http -HostName "127.0.0.1" -Path "/" -Interval 30 -Timeout 30 -UnhealthyThreshold 3 -Match $responsematch # TODO: Check setting per Service
-        $HttpSettingGeneral = New-AzApplicationGatewayBackendHttpSetting -Name "HttpGeneral_Port80"  -Port 80 -Protocol "Http" -Probe $ProbeGeneral -CookieBasedAffinity "Disabled"  -WarningAction SilentlyContinue
-        $Probes += $ProbeGeneral
-        $HttpSettings += $HttpSettingGeneral
-        $HttpSettingWebclientFirst = $null
-        # TODO: Get-Environments, add Probes per Path (e.g. -Path "/BCDefault-Web")        
-        foreach ($environment in $environments) {
-            $responsematch = New-AzApplicationGatewayProbeHealthResponseMatch -StatusCode "200-399", "401" # Include 401-status code, because Webclient will return "Unauthorized" when using Windows-authentication
-            $ProbeWebclient = New-AzApplicationGatewayProbeConfig -Name "IsNavAlive_$($environment.ServerInstance)" -Protocol Http -HostName "127.0.0.1" -Path "/$($environment.ServerInstance)-Web" -Interval 30 -Timeout 30 -UnhealthyThreshold 3 -Match $responsematch 
-            $HttpSettingWebclient = New-AzApplicationGatewayBackendHttpSetting -Name "HttpWebclient_Port8080_$($environment.ServerInstance)"  -Port 8080 -Protocol "Http" -CookieBasedAffinity "Enabled" -AffinityCookieName "WebclientApplicationGatewayAffinity" -Probe $ProbeWebclient -WarningAction SilentlyContinue
-            $Probes += $ProbeWebclient
-            $HttpSettings += $HttpSettingWebclient
-            $HttpSettingWebclientFirst = $HttpSettingWebclient
-        }
-        Write-Verbose "Adding Frontend-Configuration..."
-        $FrontEndPorts = @()
-        $FrontEndPortPrivate = New-AzApplicationGatewayFrontendPort -Name "FrontendPort_Private8080"  -Port 8080
-        $FrontEndPortPublic = New-AzApplicationGatewayFrontendPort -Name "FrontendPort_Public80"  -Port 80
-        $FrontEndPorts += $FrontEndPortPrivate
-        $FrontEndPorts += $FrontEndPortPublic
-        if ($true -eq $handleSslSetup) {
-            $FrontEndPortPublicSsl = New-AzApplicationGatewayFrontendPort -Name "FrontendPort_Public443"  -Port 443
-            $FrontEndPorts += $FrontEndPortPublicSsl
-        }
-        $PublicIP = Get-AzPublicIpAddress -ResourceGroupName $ResourceGroupName -Name $PublicIpAddressName -ErrorAction SilentlyContinue
-        if (-not($PublicIP)) {
-            Write-Verbose "Adding Public-IP..."
-            $PublicIP = New-AzPublicIpAddress -ResourceGroupName $ResourceGroupName -Name $PublicIpAddressName -location $ResourceLocation -AllocationMethod Static -Sku Standard
-        }
-        $FrontEndPrivate = New-AzApplicationGatewayFrontendIPConfig -Name $FrontEndIpConfigNamePrivate -Subnet $Subnet -PrivateIPAddress $PrivateIpAddress
-        $FrontEndPublic = New-AzApplicationGatewayFrontendIPConfig -Name $FrontEndIpConfigNamePublic -PublicIPAddress $PublicIP
-        Write-Verbose "Adding HttpListener..."        
-        $Listeners = @()
-        $ListenerPrivate = New-AzApplicationGatewayHttpListener -Name "Listener_Private8080" -Protocol "Http" -FrontendIpConfiguration $FrontEndPrivate -FrontendPort $FrontEndPortPrivate
-        $ListenerPublic = New-AzApplicationGatewayHttpListener -Name "Listener_Public80" -Protocol "Http" -FrontendIpConfiguration $FrontEndPublic -FrontendPort $FrontEndPortPublic
-        $Listeners += $ListenerPrivate
-        $Listeners += $ListenerPublic
-        if ($true -eq $handleSslSetup) {
-            $ListenerPublicSsl = New-AzApplicationGatewayHttpListener -Name "Listener_Public443" -Protocol "Https" -FrontendIpConfiguration $FrontEndPublic -FrontendPort $FrontEndPortPublicSsl -SslCertificate $sslCertificate
-            $Listeners += $ListenerPublicSsl
-        }        
-        Write-Verbose "Adding RoutingRules..."
-        $Rules = @()
-        $RulePrivate = New-AzApplicationGatewayRequestRoutingRule -Name "WebclientRule_PrivatePort8080" -RuleType basic -BackendHttpSettings $HttpSettingWebclientFirst -HttpListener $ListenerPrivate -BackendAddressPool $Pool
-        if ($true -eq $handleSslSetup) {            
-            $sslRedirectConfig = New-AzApplicationGatewayRedirectConfiguration -Name "PublicPort80to443" -RedirectType Permanent -TargetListener $ListenerPublicSsl -IncludePath $true -IncludeQueryString $true            
-            $RulePublic = New-AzApplicationGatewayRequestRoutingRule -Name "WebclientRule_PublicPort80to443" -RuleType basic -HttpListener $ListenerPublic -RedirectConfiguration $sslRedirectConfig
-            $RulePublicSsl = New-AzApplicationGatewayRequestRoutingRule -Name "WebclientRule_PublicPort443" -RuleType basic -BackendHttpSettings $HttpSettingWebclientFirst -HttpListener $ListenerPublicSsl -BackendAddressPool $Pool
-            $Rules += $RulePublicSsl
-        }
-        else {
-            $RulePrivate = New-AzApplicationGatewayRequestRoutingRule -Name "WebclientRule_PrivatePort8080" -RuleType basic -BackendHttpSettings $HttpSettingWebclientFirst -HttpListener $ListenerPrivate -BackendAddressPool $Pool
-            $RulePublic = New-AzApplicationGatewayRequestRoutingRule -Name "WebclientRule_PublicPort80" -RuleType basic -BackendHttpSettings $HttpSettingWebclientFirst -HttpListener $ListenerPublic -BackendAddressPool $Pool            
-        }
-        $Rules += $RulePrivate
-        $Rules += $RulePublic
 
+        $Probes = New-ApplicationGatewayProbeConfigs -Environments $environments -IncludeSsl:$SslSetup.HandleSSL -Verbose:$Verbose
+        $HttpSettings = New-ApplicationGatewayHttpSettings  -Environments $environments -Probes $Probes -IncludeSsl:$SslSetup.HandleSSL
+
+        # Create FrontendPorts
+        $FrontEndPorts = New-ApplicationGatewayFrontendPorts -IncludeSsl:$SslSetup.HandleSSL -Verbose:$Verbose
+
+        # Create FrontendIPConfigurations (incl. PublicIP if necessary)
+        $params = @{
+            ResourceGroupName           = $ResourceGroupName 
+            ResourceLocation            = $ResourceLocation
+            FrontEndIpConfigNamePrivate = $FrontEndIpConfigNamePrivate
+            FrontEndIpConfigNamePublic  = $FrontEndIpConfigNamePublic
+            PublicIpAddressName         = $PublicIpAddressName
+            PrivateIpAddress            = $PrivateIpAddress
+            PrivateIpAddressVersion     = $PrivateIpAddressVersion
+            Subnet                      = $NetworkSetup.Subnet
+        }
+        $IpConfiguration = New-ApplicationGatewayIpConfigurations @params -Verbose:$Verbose
+
+        # Create HttpListeners
+        $params = @{
+            IpConfiguration = $IpConfiguration
+            FrontendPorts   = $FrontEndPorts            
+        }
+        if ($SslSetup.HandleSSL) {
+            $params.Add("SslCertificate", $SslSetup.Certificate)
+        }        
+        $Listeners = New-ApplicationGatewayHttpListeners @params -IncludeSsl:$SslSetup.HandleSSL -Verbose:$Verbose
+
+        # Create RoutingRules
+        $Rules = New-ApplicationGatewayRoutingRules -HttpSettings $HttpSettings -Listeners $Listeners -BackendAddressPool $Pool -IncludeSsl:$SslSetup.HandleSSL
+
+        # Create Sku
         $Sku = New-AzApplicationGatewaySku -Name $ApplicationGatewaySkuName -Tier $ApplicationGatewaySkuTier -Capacity $ApplicationGatewaySkuCapacity
+
+        # Create Application Gateway
         $params = @{
             Name                          = $ApplicationGatewayName
             ResourceGroupName             = $ResourceGroupName
             Location                      = $ResourceLocation
             BackendAddressPools           = $Pool
-            BackendHttpSettingsCollection = $HttpSettings
-            FrontendIpConfigurations      = ($FrontEndPublic, $FrontEndPrivate)
-            FrontendPorts                 = $FrontEndPorts
-            Probes                        = $Probes
-            GatewayIpConfigurations       = $GatewayIPconfig
-            HttpListeners                 = $Listeners
-            RequestRoutingRules           = $Rules
+            BackendHttpSettingsCollection = $HttpSettings.Collection
+            FrontendIpConfigurations      = $IpConfiguration.Collection
+            FrontendPorts                 = $FrontEndPorts.Collection
+            Probes                        = $Probes.Collection
+            GatewayIpConfigurations       = $NetworkSetup.GatewayIPConfiguration
+            HttpListeners                 = $Listeners.Collection
+            RequestRoutingRules           = $Rules.Collection
             Sku                           = $Sku            
         }
-        if ($AppgwIdentity) {
-            $params.Add("Identity", $AppgwIdentity)
+        if ($SslSetup.Identity) {
+            $params.Add("Identity", $SslSetup.Identity)
         }
-        if ($sslCertificate) {
-            $params.Add("SslCertificates", $sslCertificate)
+        if ($SslSetup.Certificate) {
+            $params.Add("SslCertificates", $SslSetup.Certificate)
         }
-        if ($sslRedirectConfig) {
-            $params.Add("RedirectConfigurations", $sslRedirectConfig)
+        if ($Rules.RedirectConfiguration) {
+            $params.Add("RedirectConfigurations", $Rules.RedirectConfiguration)
         }
         Write-Verbose "Creating ApplicationGateway..."
         $appGateway = New-AzApplicationGateway @params
 
+        # Setup association of gateway with Scale Set
         Set-ApplicationGatewayAssociationForScaleSet -ResourceGroupName $ResourceGroupName -ApplicationGatewayName $ApplicationGatewayName -BackendPoolName $BackendPoolName -ScaleSetName $VMScaleSetName
     }    
 }
