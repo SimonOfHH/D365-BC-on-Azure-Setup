@@ -26,11 +26,16 @@ function Global:Get-BusinessCentralDefaultAppServerConfig {
             '15' { $versionReplacement = '150' }
             Default { }
         }                 
-        $ComponentSettings.Value = @(
-            [pscustomobject]@{Id = "RoleTailoredClient"; State = "Local"; ShowOptionNode = "yes"; },
-            [pscustomobject]@{Id = "ExcelAddin"; State = "Absent"; ShowOptionNode = "yes"; },
-            [pscustomobject]@{Id = "ClassicClient"; State = "Local"; ShowOptionNode = "yes"; },
-            [pscustomobject]@{Id = "ClickOnceInstallerTools"; State = "Local"; ShowOptionNode = "yes"; },
+        $ComponentSettings.Value = @()
+        if ($BusinessCentralVersion -lt 15) {
+            $ComponentSettings.Value += @(
+                [pscustomobject]@{Id = "RoleTailoredClient"; State = "Local"; ShowOptionNode = "yes"; },
+                [pscustomobject]@{Id = "ExcelAddin"; State = "Absent"; ShowOptionNode = "yes"; },
+                [pscustomobject]@{Id = "ClassicClient"; State = "Local"; ShowOptionNode = "yes"; },
+                [pscustomobject]@{Id = "ClickOnceInstallerTools"; State = "Local"; ShowOptionNode = "yes"; }
+            )    
+        }
+        $ComponentSettings.Value += @(
             [pscustomobject]@{Id = "NavHelpServer"; State = "Absent"; ShowOptionNode = "yes"; },
             [pscustomobject]@{Id = "WebClient"; State = "Absent"; ShowOptionNode = "yes"; },
             [pscustomobject]@{Id = "AutomatedDataCaptureSystem"; State = "Absent"; ShowOptionNode = "yes"; },
@@ -38,12 +43,19 @@ function Global:Get-BusinessCentralDefaultAppServerConfig {
             [pscustomobject]@{Id = "SQLServerDatabase"; State = "Absent"; ShowOptionNode = "yes"; },
             [pscustomobject]@{Id = "SQLDemoDatabase"; State = "Absent"; ShowOptionNode = "yes"; },
             [pscustomobject]@{Id = "ServiceTier"; State = "Local"; ShowOptionNode = "yes"; },
-            [pscustomobject]@{Id = "Pagetest"; State = "Local"; ShowOptionNode = "yes"; },
-            [pscustomobject]@{Id = "STOutlookIntegration"; State = "Absent"; ShowOptionNode = "yes"; },
+            [pscustomobject]@{Id = "Pagetest"; State = "Local"; ShowOptionNode = "yes"; }
+        )
+        if ($BusinessCentralVersion -lt 15) {
+            $ComponentSettings.Value += @(
+                [pscustomobject]@{Id = "STOutlookIntegration"; State = "Absent"; ShowOptionNode = "yes"; }
+            )
+        }
+        $ComponentSettings.Value += @(
             [pscustomobject]@{Id = "ServerManager"; State = "Local"; ShowOptionNode = "yes"; },
             [pscustomobject]@{Id = "DevelopmentEnvironment"; State = "Local"; ShowOptionNode = "yes"; }            
         )
-        $Parameters.Value = @(
+        $Parameters.Value = @()
+        $Parameters.Value += @(
             [pscustomobject]@{Id = "TargetPath"; Value = "C:\Program Files (x86)\Microsoft Dynamics 365 Business Central\$versionReplacement"; IsHidden = $null; },
             [pscustomobject]@{Id = "TargetPathX64"; Value = "C:\Program Files\Microsoft Dynamics 365 Business Central\$versionReplacement"; IsHidden = $null; },
             [pscustomobject]@{Id = "NavServiceServerName"; Value = "localhost"; IsHidden = $null; },
@@ -62,18 +74,40 @@ function Global:Get-BusinessCentralDefaultAppServerConfig {
             [pscustomobject]@{Id = "DeveloperServiceServerEnabled"; Value = "true"; IsHidden = $null; },
             [pscustomobject]@{Id = "NavFirewallOption"; Value = "false"; IsHidden = $null; },
             [pscustomobject]@{Id = "CredentialTypeOption"; Value = "Windows"; IsHidden = $null; },
-            [pscustomobject]@{Id = "DnsIdentity"; Value = ""; IsHidden = $null; },
-            [pscustomobject]@{Id = "ACSUri"; Value = ""; IsHidden = $null; },
+            [pscustomobject]@{Id = "DnsIdentity"; Value = ""; IsHidden = $null; }
+        )
+        if ($BusinessCentralVersion -lt 15) {
+            $Parameters.Value += @(                
+                [pscustomobject]@{Id = "ACSUri"; Value = ""; IsHidden = $null; }
+            )
+        }
+        $Parameters.Value += @(            
             [pscustomobject]@{Id = "SQLServer"; Value = ""; IsHidden = $null; },
-            [pscustomobject]@{Id = "SQLInstanceName"; Value = ""; IsHidden = $null; },
-            [pscustomobject]@{Id = "SQLDatabaseName"; Value = "Demo Database NAV ($BusinessCentralVersion-0)"; IsHidden = $null; },
+            [pscustomobject]@{Id = "SQLInstanceName"; Value = ""; IsHidden = $null; }            
+        )
+        if ($BusinessCentralVersion -lt 15) {
+            $Parameters.Value += @(                
+                [pscustomobject]@{Id = "SQLDatabaseName"; Value = "Demo Database NAV ($BusinessCentralVersion-0)"; IsHidden = $null; }
+            )
+        } else {
+            $Parameters.Value += @(                
+                [pscustomobject]@{Id = "SQLDatabaseName"; Value = "Demo Database BC ($BusinessCentralVersion-0)"; IsHidden = $null; }
+            )
+        }
+        $Parameters.Value += @(
             [pscustomobject]@{Id = "SQLReplaceDb"; Value = "FAILINSTALLATION"; IsHidden = $null; },
             [pscustomobject]@{Id = "SQLAddLicense"; Value = "true"; IsHidden = $null; },
             [pscustomobject]@{Id = "PostponeServerStartup"; Value = "false"; IsHidden = $null; },
             [pscustomobject]@{Id = "PublicODataBaseUrl"; Value = ""; IsHidden = $null; },
             [pscustomobject]@{Id = "PublicSOAPBaseUrl"; Value = ""; IsHidden = $null; },
-            [pscustomobject]@{Id = "PublicWebBaseUrl"; Value = ""; IsHidden = $null; },
-            [pscustomobject]@{Id = "PublicWinBaseUrl"; Value = ""; IsHidden = $null; },
+            [pscustomobject]@{Id = "PublicWebBaseUrl"; Value = ""; IsHidden = $null; }            
+        )
+        if ($BusinessCentralVersion -lt 15) {
+            $Parameters.Value += @(
+                [pscustomobject]@{Id = "PublicWinBaseUrl"; Value = ""; IsHidden = $null; }
+            )
+        }
+        $Parameters.Value += @(
             [pscustomobject]@{Id = "WebServerPort"; Value = "8080"; IsHidden = $null; },
             [pscustomobject]@{Id = "WebServerSSLCertificateThumbprint"; Value = ""; IsHidden = $null; },
             [pscustomobject]@{Id = "WebClientRunDemo"; Value = "true"; IsHidden = $null; },
@@ -81,6 +115,6 @@ function Global:Get-BusinessCentralDefaultAppServerConfig {
             [pscustomobject]@{Id = "NavHelpServerPath"; Value = "[WIX_SystemDrive]\Inetpub\wwwroot"; IsHidden = $null; },
             [pscustomobject]@{Id = "NavHelpServerName"; Value = ""; IsHidden = $null; },
             [pscustomobject]@{Id = "NavHelpServerPort"; Value = "0"; IsHidden = $null; }
-        )        
+        )
     }
 }
