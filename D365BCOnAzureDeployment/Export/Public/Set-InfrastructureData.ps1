@@ -22,6 +22,9 @@ function Set-InfrastructureData {
         [Parameter(Mandatory = $false)]
         [string]
         $WebScaleSetName,
+        [Parameter(Mandatory = $false)]
+        [string]
+        $StorageAccountResourceGroup = $ResourceGroupName,
         [Parameter(Mandatory = $true)]
         [string]
         $StorageAccountName,
@@ -43,7 +46,7 @@ function Set-InfrastructureData {
             $vmss = Get-AzVmss -ResourceGroupName $ResourceGroupName -VMScaleSetName $WebScaleSetName -ErrorAction SilentlyContinue
             $webScaleSetPrefix = $vmss.VirtualMachineProfile.OsProfile.ComputerNamePrefix
         }
-        $storageAccount = Get-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName
+        $storageAccount = Get-AzStorageAccount -ResourceGroupName $StorageAccountResourceGroup -Name $StorageAccountName
         $storageAccountContext = $storageAccount.Context
         $storageAccountTable = Get-AzStorageTable -Name $TableNameInfrastructure -Context $storageAccountContext
         $cloudTable = $storageAccountTable.CloudTable

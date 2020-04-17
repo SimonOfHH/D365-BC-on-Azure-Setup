@@ -17,12 +17,21 @@ function New-ScaleSetImage {
         [Parameter(Mandatory = $true)]
         [string]
         $ImageName,
+        [Parameter(Mandatory = $false)]
+        [string]
+        $VirtualNetworkResourceGroup,
+        [Parameter(Mandatory = $false)]
+        [string]
+        $StorageAccountType,
         [Parameter(Mandatory = $true)]
         [string]
         $VirtualMachineName,
         [Parameter(Mandatory = $true)]
         [string]
         $ScaleSetName,
+        [Parameter(Mandatory = $false)]
+        [string]
+        $StorageAccountResourceGroupName = $ResourceGroupName,
         [Parameter(Mandatory = $false)]
         [string]
         $StorageAccountName,
@@ -33,6 +42,9 @@ function New-ScaleSetImage {
         [string]
         $SubnetName,
         $PrivateIpAddress,
+        [Parameter(Mandatory = $false)]
+        [string]
+        $KeyVaultResourceGroupName = $ResourceGroupName,
         [Parameter(Mandatory = $true)]
         [string]
         $KeyVaultName,
@@ -74,6 +86,8 @@ function New-ScaleSetImage {
         [string]
         $TemplateUri = "https://raw.githubusercontent.com/SimonOfHH/ARM-Templates/master/Templates/D365BCOnAzure/VM-for-Image-Prep.json",
         [switch]
+        $DoNotGeneralize,
+        [switch]
         $AsJob
     )    
     $scriptBlock = {
@@ -106,7 +120,7 @@ function New-ScaleSetImage {
             # Copy necessary parameters to new HashTable; this will be used inside the Parameters for the upcoming New-AzResourceGroupDeployment
             $paramsObject = @{ }        
             foreach ($var in $args[0].GetEnumerator()) {
-                if ($var.Key -notin @('ResourceGroupName', 'ResourceLocation', 'ImageName', 'TemplateFile', 'TemplateUri', 'AsJob')) {
+                if ($var.Key -notin @('ResourceGroupName', 'ResourceLocation', 'ImageName', 'TemplateFile', 'TemplateUri', 'AsJob', 'DoNotGeneralize')) {
                     $paramsObject.Add($var.Key, $var.Value)
                 }
             }
@@ -127,8 +141,12 @@ function New-ScaleSetImage {
             Write-Verbose "Starting AzResourceGroupDeployment..."        
             New-AzResourceGroupDeployment @deployParams | Out-Null
             Write-Verbose "Done"
+            
+            if ($DoNotGeneralize){
+                return
+            }
 
-            Write-Verbose "Sleeping for 60 seconds, to avoid weird effects"
+            Write-Verbose "Sleeping for 60 seconds, to avoid weird effects $($VirtualMachineName) $(Get-Date -Format "HH:mm:ss")"
             Start-Sleep -Seconds 60
             Write-Verbose "Done Sleeping"
 
@@ -137,7 +155,10 @@ function New-ScaleSetImage {
                 Remove-AzVMCustomScriptExtension -ResourceGroupName $ResourceGroupName -VMName $VirtualMachineName -Name "CustomScriptExtension" -Force -Verbose | Out-Null
             }
             Write-Verbose "Done"
-
+            
+            Write-Verbose "Sleeping for 60 seconds, to avoid weird effects $($VirtualMachineName) $(Get-Date -Format "HH:mm:ss")"
+            Start-Sleep -Seconds 60
+            Write-Verbose "Done Sleeping"
             # Needed to have this outside the Init-Scripts, because "Remove-AzVMCustomScriptExtension" otherwise might fail
             # Also needed to add "Remove-AzVMCustomScriptExtension", because VM-generation from Image failed sometimes otherwise
             $scriptBlock = {
@@ -174,7 +195,7 @@ function New-ScaleSetImage {
             Clear-ScaleSetPreparationResources -ResourceGroupName $ResourceGroupName -Tag $ResourceTags -Verbose:$Verbose
         }
         catch {
-
+            Write-Error $_
         }
         $VerbosePreference = $oldVerbosePreference
         $ErrorActionPreference = $oldErrorActionPreference

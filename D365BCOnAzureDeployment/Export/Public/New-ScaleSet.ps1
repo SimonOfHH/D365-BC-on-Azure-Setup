@@ -19,6 +19,9 @@ function New-ScaleSet {
         [Parameter(Mandatory = $true)]
         [string]
         $ScaleSetName,
+        [Parameter(Mandatory = $false)]
+        [string]
+        $VirtualNetworkResourceGroup,
         [Parameter(Mandatory = $true)]
         [string]
         $VirtualNetworkName,
@@ -26,6 +29,15 @@ function New-ScaleSet {
         [string]
         $SubnetName,
         $PrivateIpAddress,
+        [Parameter(Mandatory = $false)]
+        [string]
+        $StorageAccountResourceGroup = $ResourceGroupName,
+        [Parameter(Mandatory = $true)]
+        [string]
+        $StorageAccountName,
+        [Parameter(Mandatory = $false)]
+        [string]
+        $KeyVaultResourceGroup = $ResourceGroupName,
         [Parameter(Mandatory = $true)]
         [string]
         $KeyVaultName,
@@ -97,6 +109,9 @@ function New-ScaleSet {
                 DomainAdminUsername = "$domainName\$domainAdminUserName"
                 DomainAdminPassword = $domainAdminUserPass
             }
+            if ($VirtualNetworkResourceGroup) {
+                $vmssSettings.Add("VirtualNetworkResourceGroup", $VirtualNetworkResourceGroup)
+            }
             $deployParams = @{
                 Name                    = "$ScaleSetName-deploy"
                 ResourceGroupName       = $ResourceGroupName
@@ -110,11 +125,13 @@ function New-ScaleSet {
                     $deployParams.Add("TemplateUri", $TemplateUri)
                 }
             }
-            New-AzResourceGroupDeployment @deployParams | Out-Null
+            New-AzResourceGroupDeployment @deployParams | Out-Null            
         }
         catch {
 
         }
+        Set-TagsOnResource -ResourceGroupName $ResourceGroupName -ResourceName $ScaleSetName -Tags $ResourceTags
+
         Write-Verbose "Assigning access roles to managed identity of VM Scale Set..."
         $VMSS = Get-AzVmss -ResourceGroupName $ResourceGroupName -VMScaleSetName $ScaleSetName
         Wait-ForNewlyCreatedIdentity -ResourceGroupName $ResourceGroupName -ObjectId $VMSS.Identity.PrincipalId -Verbose:$Verbose
@@ -122,8 +139,9 @@ function New-ScaleSet {
         Write-Verbose "Assigning role 'Reader' on Resource Group-level..."
         New-AzRoleAssignment -ObjectId $VMSS.Identity.PrincipalId -RoleDefinitionName "Reader" -ResourceGroupName $ResourceGroupName | Out-Null        
         Write-Verbose "Assigning role 'Contributor' on Storage Account-level..."
-        New-AzRoleAssignment -ObjectId $VMSS.Identity.PrincipalId -RoleDefinitionName "Contributor" -ResourceGroupName $ResourceGroupName -ResourceName (Get-AzStorageAccount -ResourceGroupName $resourceGroupName | Select-Object -First 1).StorageAccountName -ResourceType "Microsoft.Storage/storageAccounts" | Out-Null
-        Set-KeyVaultPermissionsForScaleSet -ResourceGroupName $ResourceGroupName -KeyVaultName $KeyVaultName -ScaleSetName $ScaleSetName -Verbose
+        #New-AzRoleAssignment -ObjectId $VMSS.Identity.PrincipalId -RoleDefinitionName "Contributor" -ResourceGroupName $ResourceGroupName -ResourceName (Get-AzStorageAccount -ResourceGroupName $StorageAccountResourceGroup -Name $StorageAccountName | Select-Object -First 1).StorageAccountName -ResourceType "Microsoft.Storage/storageAccounts" | Out-Null
+        New-AzRoleAssignment -ObjectId $VMSS.Identity.PrincipalId -RoleDefinitionName "Contributor" -ResourceGroupName $StorageAccountResourceGroup -ResourceName (Get-AzStorageAccount -ResourceGroupName $StorageAccountResourceGroup -Name $StorageAccountName | Select-Object -First 1).StorageAccountName -ResourceType "Microsoft.Storage/storageAccounts" | Out-Null
+        Set-KeyVaultPermissionsForScaleSet -ResourceGroupName $ResourceGroupName -KeyVaultResourceGroup $KeyVaultResourceGroup -KeyVaultName $KeyVaultName -ScaleSetName $ScaleSetName -Verbose
         $VerbosePreference = $oldVerbosePreference
         $ErrorActionPreference = $oldErrorActionPreference
     }

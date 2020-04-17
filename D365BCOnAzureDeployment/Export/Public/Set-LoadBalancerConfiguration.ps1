@@ -16,6 +16,9 @@ function Set-LoadBalancerConfiguration {
         [Parameter(Mandatory = $true)]
         [string]
         $LoadBalancerName,
+        [Parameter(Mandatory = $false)]
+        [string]
+        $StorageAccountResourceGroup = $ResourceGroupName,
         [Parameter(Mandatory = $true)]
         [string]
         $StorageAccountName,
@@ -34,7 +37,7 @@ function Set-LoadBalancerConfiguration {
         $frontEndConfig = Get-AzLoadBalancerFrontendIpConfig -LoadBalancer $loadBalancer
         $backendPool = Get-AzLoadBalancerBackendAddressPoolConfig -LoadBalancer $loadBalancer
 
-        $storageAccount = Get-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName
+        $storageAccount = Get-AzStorageAccount -ResourceGroupName $StorageAccountResourceGroup -Name $StorageAccountName
         $storageAccountContext = $storageAccount.Context
 
         $environments = Get-EnvironmentsFromStorage -StorageAccountContext $storageAccountContext -TableNameEnvironments $TableNameEnvironments -TableNameDefaults "" -TypeFilter $EnvironmentTypeFilter -EnvironmentsOnly
