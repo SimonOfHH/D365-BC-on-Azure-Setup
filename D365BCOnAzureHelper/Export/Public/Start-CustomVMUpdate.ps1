@@ -26,7 +26,13 @@ function Start-CustomVMUpdate {
         $ResourceGroupName,
         [Parameter(Mandatory = $true)]
         [string]
+        $StorageAccountResourceGroupName,
+        [Parameter(Mandatory = $true)]
+        [string]
         $StorageAccountName,
+        [Parameter(Mandatory = $true)]
+        [string]
+        $KeyVaultResourceGroupName,
         [Parameter(Mandatory = $true)]
         [string]
         $KeyVaultName,
@@ -50,22 +56,29 @@ function Start-CustomVMUpdate {
         Wait-ForInstanceAvailability -ResourceGroupName $ResourceGroupName -ScaleSetName $ObjectName -NewInstanceMarkerFilename $NewInstanceMarkerFilename -Verbose:$Verbose
 
         # Disable Internet Explorer Enhanced Security Configuration (for Admins only) - because it's annoying
-        if ($NewInstanceMarkerFilename){
+        if ($NewInstanceMarkerFilename) {
             Disable-InternetExplorerESC
         }
 
+        Set-Item Env:\SuppressAzurePowerShellBreakingChangeWarnings "true"
+
+        $Resource = Get-AzResource -ResourceGroupName $ResourceGroupName -Name $ObjectName
+        if ($Resource.Tags["Staging"]) {
+            $TypeFilter = $Resource.Tags["Staging"]
+        }
+
         Write-Verbose "Loading pending commands..."
-        $storageAccount = Get-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName
+        $storageAccount = Get-AzStorageAccount -ResourceGroupName $StorageAccountResourceGroupName -Name $StorageAccountName
         $storageAccountCtx = $storageAccount.Context
 
-        $infrastructureData = Get-InfrastructureDataFromStorage -StorageAccountContext $storageAccountCtx -TableNameInfrastructureData $StorageTableNameInfrastructureData
+        $infrastructureData = Get-InfrastructureDataFromStorage -StorageAccountContext $storageAccountCtx -TableNameInfrastructureData $StorageTableNameInfrastructureData -TypeFilter $TypeFilter
         $TableNameSetup = $infrastructureData.SetupTable
         $TableNameEnvironments = $infrastructureData.EnvironmentsTable
         $TableNameEnvironmentDefaults = $infrastructureData.EnvironmentDefaultsTable
         $TableNameLog = $infrastructureData.LogTable
         $TableNameUsers = $infrastructureData.UsersTable
 
-        $rows = Get-CommandsFromStorageTable -StorageAccountContext $storageAccountCtx -TableName $TableNameSetup -ObjectName $ObjectName
+        $rows = Get-CommandsFromStorageTable -StorageAccountContext $storageAccountCtx -TableName $TableNameSetup -ObjectName $ObjectName -TypeFilter $TypeFilter
         foreach ($row in $rows) {
             if ($row.Command -ne 'SetupNotDone') {
                 if (($NewInstanceMarkerFilename) -and (Test-Path $NewInstanceMarkerFilename)) {
@@ -99,20 +112,22 @@ function Start-CustomVMUpdate {
                 'CreateInstances' {
                     $params = @{
                         StorageAccountContext               = $storageAccountCtx
+                        KeyVaultResourceGroupName           = $KeyVaultResourceGroupName
                         KeyVaultName                        = $KeyVaultName
                         StorageTableNameEnvironments        = $TableNameEnvironments 
                         StorageTableNameEnvironmentDefaults = $TableNameEnvironmentDefaults
-                        TypeFilter                          = $row.Parameter1
+                        TypeFilter                          = $row.TypeFilter
                     }
                     Invoke-CreateInstances @params -Verbose:$Verbose
                 }
                 'UpdateInstanceConfiguration' {
                     $params = @{
                         StorageAccountContext               = $storageAccountCtx
+                        KeyVaultResourceGroupName           = $KeyVaultResourceGroupName
                         KeyVaultName                        = $KeyVaultName
                         StorageTableNameEnvironments        = $TableNameEnvironments 
                         StorageTableNameEnvironmentDefaults = $TableNameEnvironmentDefaults
-                        TypeFilter                          = $row.Parameter1
+                        TypeFilter                          = $row.TypeFilter
                         Parameter2                          = $row.Parameter2
                         RestartService                      = $row.RestartNecessary
                     }
@@ -121,10 +136,11 @@ function Start-CustomVMUpdate {
                 'UpdateLicense' {
                     $params = @{
                         StorageAccountContext               = $storageAccountCtx
+                        KeyVaultResourceGroupName           = $KeyVaultResourceGroupName
                         KeyVaultName                        = $KeyVaultName
                         StorageTableNameEnvironments        = $TableNameEnvironments 
                         StorageTableNameEnvironmentDefaults = $TableNameEnvironmentDefaults
-                        TypeFilter                          = $row.Parameter1
+                        TypeFilter                          = $row.TypeFilter
                         Parameter2                          = $row.Parameter2
                         RestartService                      = $row.RestartNecessary
                     }
@@ -133,10 +149,11 @@ function Start-CustomVMUpdate {
                 'CreateWebInstances' {
                     $params = @{
                         StorageAccountContext               = $storageAccountCtx
+                        KeyVaultResourceGroupName           = $KeyVaultResourceGroupName
                         KeyVaultName                        = $KeyVaultName
                         StorageTableNameEnvironments        = $TableNameEnvironments 
                         StorageTableNameEnvironmentDefaults = $TableNameEnvironmentDefaults
-                        TypeFilter                          = $row.Parameter1
+                        TypeFilter                          = $row.TypeFilter
                         Parameter2                          = $row.Parameter2
                         InfrastructureData                  = $infrastructureData
                     }
@@ -145,10 +162,11 @@ function Start-CustomVMUpdate {
                 'UpdateWebInstances' {
                     $params = @{
                         StorageAccountContext               = $storageAccountCtx
+                        KeyVaultResourceGroupName           = $KeyVaultResourceGroupName
                         KeyVaultName                        = $KeyVaultName
                         StorageTableNameEnvironments        = $TableNameEnvironments 
                         StorageTableNameEnvironmentDefaults = $TableNameEnvironmentDefaults
-                        TypeFilter                          = $row.Parameter1
+                        TypeFilter                          = $row.TypeFilter
                         Parameter2                          = $row.Parameter2
                         InfrastructureData                  = $infrastructureData
                     }
@@ -156,18 +174,20 @@ function Start-CustomVMUpdate {
                 }
                 'CreateSPN' {
                     $params = @{
-                        StorageAccountContext = $storageAccountCtx
-                        KeyVaultName          = $KeyVaultName
-                        TypeFilter            = $row.Parameter1
-                        Parameter2            = $row.Parameter2
-                        InfrastructureData    = $infrastructureData
+                        StorageAccountContext     = $storageAccountCtx
+                        KeyVaultResourceGroupName = $KeyVaultResourceGroupName
+                        KeyVaultName              = $KeyVaultName
+                        TypeFilter                = $row.TypeFilter
+                        Parameter2                = $row.Parameter2
+                        InfrastructureData        = $infrastructureData
                     }
                     Invoke-SetSpnForServices @params -Verbose:$Verbose
                 }
                 'SetLoadbalancerDNSRecord' {
                     $params = @{
-                        KeyVaultName       = $KeyVaultName
-                        InfrastructureData = $infrastructureData
+                        KeyVaultResourceGroupName = $KeyVaultResourceGroupName
+                        KeyVaultName              = $KeyVaultName
+                        InfrastructureData        = $infrastructureData
                     }
                     Invoke-SetLoadBalancerDnsRecord @params -Verbose:$Verbose
                 }
@@ -175,7 +195,8 @@ function Start-CustomVMUpdate {
                     $params = @{
                         StorageAccountContext        = $storageAccountCtx
                         StorageTableNameEnvironments = $TableNameEnvironments 
-                        TypeFilter                   = $row.Parameter1
+                        TypeFilter                   = $row.TypeFilter
+                        KeyVaultResourceGroupName    = $KeyVaultResourceGroupName
                         KeyVaultName                 = $KeyVaultName
                         InfrastructureData           = $infrastructureData
                     }
@@ -184,9 +205,10 @@ function Start-CustomVMUpdate {
                 'RestartServices' {
                     $params = @{
                         StorageAccountContext        = $storageAccountCtx
+                        KeyVaultResourceGroupName    = $KeyVaultResourceGroupName
                         KeyVaultName                 = $KeyVaultName
                         StorageTableNameEnvironments = $TableNameEnvironments 
-                        TypeFilter                   = $row.Parameter1
+                        TypeFilter                   = $row.TypeFilter
                     }
                     Invoke-RestartServices @params -Verbose:$Verbose
                 }
@@ -197,21 +219,33 @@ function Start-CustomVMUpdate {
                 'AddUsers' {
                     $params = @{
                         StorageAccountContext               = $storageAccountCtx
+                        KeyVaultResourceGroupName           = $KeyVaultResourceGroupName
                         KeyVaultName                        = $KeyVaultName
                         StorageTableNameEnvironments        = $TableNameEnvironments 
                         StorageTableNameEnvironmentDefaults = $TableNameEnvironmentDefaults
                         StorageTableNameUsers               = $TableNameUsers
-                        TypeFilter                          = $row.Parameter1
+                        TypeFilter                          = $row.TypeFilter
                     }
                     Invoke-AddUsers @params -Verbose:$Verbose
+                }
+                'AddLocalAdminUser' {
+                    if ($row.Parameter1) {
+                        Write-Verbose "Adding '$($row.Parameter1)' to local Administrator group"
+                        Add-LocalGroupMember -Group "Administrators" -Member $row.Parameter1
+                    }
+                    if ($row.Parameter2) {
+                        Write-Verbose "Adding '$($row.Parameter2)' to local Administrator group"
+                        Add-LocalGroupMember -Group "Administrators" -Member $row.Parameter2
+                    }
                 }
                 'SetupCertificate' {
                     $params = @{
                         StorageAccountContext               = $storageAccountCtx
+                        KeyVaultResourceGroupName           = $KeyVaultResourceGroupName
                         KeyVaultName                        = $KeyVaultName
                         StorageTableNameEnvironments        = $TableNameEnvironments 
                         StorageTableNameEnvironmentDefaults = $TableNameEnvironmentDefaults 
-                        TypeFilter                          = $row.Parameter1
+                        TypeFilter                          = $row.TypeFilter
                         CertificateType                     = ""
                         RestartService                      = $row.RestartNecessary
                     }
