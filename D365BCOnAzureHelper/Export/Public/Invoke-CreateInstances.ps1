@@ -11,6 +11,9 @@ function Invoke-CreateInstances {
         $StorageAccountContext,
         [Parameter(Mandatory = $true)]
         [string]
+        $KeyVaultResourceGroupName,
+        [Parameter(Mandatory = $true)]
+        [string]
         $KeyVaultName,
         [Parameter(Mandatory = $true)]
         [string]
@@ -63,9 +66,10 @@ function Invoke-CreateInstances {
                             Set-NAVServerConfiguration -ServerInstance $environment.ServerInstance -KeyName $key -KeyValue $environment.Settings[$key] -Verbose:$Verbose
                         }
                     }
-                    Write-Verbose "Restarting service"
-                    Restart-NAVServerInstance -ServerInstance $environment.ServerInstance | Out-Null
-                    Write-Verbose "Service restarted"
+                    # Do not start right away
+                    #Write-Verbose "Restarting service"
+                    #Restart-NAVServerInstance -ServerInstance $environment.ServerInstance | Out-Null
+                    #Write-Verbose "Service restarted"
                 }
                 $scriptBlock
             }

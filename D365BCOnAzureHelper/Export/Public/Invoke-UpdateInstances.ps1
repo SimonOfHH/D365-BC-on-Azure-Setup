@@ -11,6 +11,9 @@ function Invoke-UpdateInstances {
         $StorageAccountContext,
         [Parameter(Mandatory = $true)]
         [string]
+        $KeyVaultResourceGroupName,
+        [Parameter(Mandatory = $true)]
+        [string]
         $KeyVaultName,
         [Parameter(Mandatory = $true)]
         [string]
@@ -34,6 +37,9 @@ function Invoke-UpdateInstances {
                     param(
                         [Parameter(Mandatory = $true)]        
                         $Environment,
+                        [Parameter(Mandatory = $true)]
+                        [string]
+                        $KeyVaultResourceGroupName,
                         [Parameter(Mandatory = $true)]
                         [string]
                         $KeyVaultName,
@@ -102,7 +108,7 @@ function Invoke-UpdateInstances {
                     Import-NecessaryModules -Type Application
                 }
                 $scriptBlock = Get-ScriptblockForJob
-                $job = Start-Job -ScriptBlock $scriptBlock -InitializationScript $initScriptBlock -ArgumentList $environment, $KeyVaultName, $RestartService
+                $job = Start-Job -ScriptBlock $scriptBlock -InitializationScript $initScriptBlock -ArgumentList $environment, $KeyVaultResourceGroupName, $KeyVaultName, $RestartService
                 $job | Receive-Job -Wait -Verbose:$Verbose
                 $VerboseOutput = $job.ChildJobs[0].verbose.readall()
                 Write-Verbose "Printing verbose-output from job: "                

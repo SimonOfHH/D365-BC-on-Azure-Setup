@@ -11,6 +11,9 @@ function Invoke-SetSpnForServices {
         $StorageAccountContext,
         [Parameter(Mandatory = $true)]
         [string]
+        $KeyVaultResourceGroupName,
+        [Parameter(Mandatory = $true)]
+        [string]
         $KeyVaultName,
         [Parameter(Mandatory = $true)]
         [string]

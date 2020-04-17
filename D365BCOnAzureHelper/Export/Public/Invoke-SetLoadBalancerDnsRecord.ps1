@@ -6,7 +6,10 @@ function Invoke-SetLoadBalancerDnsRecord {
     .DESCRIPTION
         ...
     #>
-    param(        
+    param(
+        [Parameter(Mandatory = $true)]
+        [string]
+        $KeyVaultResourceGroupName,
         [Parameter(Mandatory = $true)]
         [string]
         $KeyVaultName,

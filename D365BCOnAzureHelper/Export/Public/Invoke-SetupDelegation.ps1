@@ -17,6 +17,9 @@ function Invoke-SetupDelegation {
         $TypeFilter,
         [Parameter(Mandatory = $true)]
         [string]
+        $KeyVaultResourceGroupName,
+        [Parameter(Mandatory = $true)]
+        [string]
         $KeyVaultName,
         [pscustomobject]
         $InfrastructureData
