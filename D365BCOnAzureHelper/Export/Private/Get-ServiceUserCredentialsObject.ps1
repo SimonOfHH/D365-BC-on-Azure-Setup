@@ -27,10 +27,17 @@ function Global:Get-ServiceUserCredentialsObject {
         } else {
             Write-Verbose "Getting service-account credentials from KeyVault $KeyVaultName..."
         }
-        $domainName = (Get-AzKeyVaultSecret -VaultName $KeyVaultName -Name 'DomainName').SecretValueText          
+        $domainName = (Get-AzKeyVaultSecret -VaultName $KeyVaultName -Name 'DomainName').SecretValueText
         if ($KVIdentifier) {
             $svcUserName = (Get-AzKeyVaultSecret -VaultName $KeyVaultName -Name "$($KVIdentifier)Username" -ErrorAction SilentlyContinue).SecretValueText
-            $svcUserPass = (Get-AzKeyVaultSecret -VaultName $KeyVaultName -Name "$($KVIdentifier)Password" -ErrorAction SilentlyContinue).SecretValueText            
+            $svcUserPass = (Get-AzKeyVaultSecret -VaultName $KeyVaultName -Name "$($KVIdentifier)Password" -ErrorAction SilentlyContinue).SecretValueText
+            # Workaround for a project with existing Keyvault
+            if (-not($svcUserName)){
+                $svcUserName = (Get-AzKeyVaultSecret -VaultName $KeyVaultName -Name "$($KVIdentifier)-User" -ErrorAction SilentlyContinue).SecretValueText
+            }
+            if (-not($svcUserPass)){
+                $svcUserPass = (Get-AzKeyVaultSecret -VaultName $KeyVaultName -Name "$($KVIdentifier)-Pass" -ErrorAction SilentlyContinue).SecretValueText
+            }
         }
         if (($svcUserName) -and ($svcUserPass)){
             $svcUserName = "$domainName\$svcUserName"
