@@ -50,6 +50,13 @@ function New-ApplicationGateway {
         [Parameter(Mandatory = $true)]
         [string]
         $PublicIpAddressName,
+        [Parameter(Mandatory = $true)]
+        [string]
+        $PublicIpAddressSku = "Standard",
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('Dynamic', 'Static')]
+        [string]
+        $PublicIpAddressAllocation = "Static",
         [Parameter(Mandatory = $false)]
         [string]
         $DomainNameLabel,
@@ -65,6 +72,9 @@ function New-ApplicationGateway {
         [Parameter(Mandatory = $false)]
         [bool]
         $UpdateScaleSet = $true,
+        [Parameter(Mandatory = $false)]
+        [string]
+        $StorageAccountResourceGroup = $ResourceGroupName,
         [Parameter(Mandatory = $true)]
         [string]
         $StorageAccountName,
@@ -76,7 +86,13 @@ function New-ApplicationGateway {
         $EnvironmentTypeFilter,
         [Parameter(Mandatory = $false)]
         [string]
+        $KeyVaultResourceGroup = $ResourceGroupName,
+        [Parameter(Mandatory = $false)]
+        [string]
         $KeyVaultName,
+        [Parameter(Mandatory = $false)]
+        [string]
+        $CertificateName = "ApplicationGateway",
         [HashTable]
         $Tags
     )
@@ -87,15 +103,16 @@ function New-ApplicationGateway {
         }
 
         # Get environments from Storage; needed to create correct HttpSettings and Probes for Webclients
-        $storageAccount = Get-AzStorageAccount -ResourceGroupName $ResourceGroupName -Name $StorageAccountName
+        $storageAccount = Get-AzStorageAccount -ResourceGroupName $StorageAccountResourceGroup -Name $StorageAccountName
         $storageAccountContext = $storageAccount.Context
         $environments = Get-EnvironmentsFromStorage -StorageAccountContext $storageAccountContext -TableNameEnvironments $TableNameEnvironments -TypeFilter $EnvironmentTypeFilter -EnvironmentsOnly -Verbose:$Verbose
 
         $params = @{
-            ResourceGroupName      = $ResourceGroupName
+            ResourceGroupName      = $KeyVaultResourceGroup
             ResourceLocation       = $ResourceLocation
             ApplicationGatewayName = $ApplicationGatewayName
             KeyVaultName           = $KeyVaultName
+            CertificateName        = $CertificateName
         }
         $SslSetup = Get-ApplicationGatewaySslSetupAndIdentity @params
 
@@ -124,6 +141,8 @@ function New-ApplicationGateway {
             FrontEndIpConfigNamePrivate = $FrontEndIpConfigNamePrivate
             FrontEndIpConfigNamePublic  = $FrontEndIpConfigNamePublic
             PublicIpAddressName         = $PublicIpAddressName
+            PublicIpAddressSku          = $PublicIpAddressSku
+            PublicIpAddressAllocation   = $PublicIpAddressAllocation
             PrivateIpAddress            = $PrivateIpAddress
             PrivateIpAddressVersion     = $PrivateIpAddressVersion
             Subnet                      = $NetworkSetup.Subnet
@@ -159,7 +178,7 @@ function New-ApplicationGateway {
             GatewayIpConfigurations       = $NetworkSetup.GatewayIPConfiguration
             HttpListeners                 = $Listeners.Collection
             RequestRoutingRules           = $Rules.Collection
-            Sku                           = $Sku            
+            Sku                           = $Sku
         }
         if ($SslSetup.Identity) {
             $params.Add("Identity", $SslSetup.Identity)
@@ -172,6 +191,9 @@ function New-ApplicationGateway {
         }
         Write-Verbose "Creating ApplicationGateway..."
         $appGateway = New-AzApplicationGateway @params
+        Write-Verbose "Done."
+
+        Set-TagsOnResource -ResourceGroupName $ResourceGroupName -ResourceName $ApplicationGatewayName -Tags $Tags
 
         # Setup association of gateway with Scale Set
         Set-ApplicationGatewayAssociationForScaleSet -ResourceGroupName $ResourceGroupName -ApplicationGatewayName $ApplicationGatewayName -BackendPoolName $BackendPoolName -ScaleSetName $VMScaleSetName
