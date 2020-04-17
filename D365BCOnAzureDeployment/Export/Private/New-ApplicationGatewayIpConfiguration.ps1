@@ -27,6 +27,13 @@ function Global:New-ApplicationGatewayIpConfigurations {
         [Parameter(Mandatory = $true)]
         [string]
         $PublicIpAddressName,
+        [Parameter(Mandatory = $false)]
+        [string]
+        $PublicIpAddressSku = "Standard",
+        [Parameter(Mandatory = $false)]
+        [ValidateSet('Dynamic', 'Static')]
+        [string]
+        $PublicIpAddressAllocation = "Static",
         [Parameter(Mandatory = $true)]
         [string]
         $PrivateIpAddress,
@@ -47,7 +54,7 @@ function Global:New-ApplicationGatewayIpConfigurations {
         $Ipconfiguration.PIP = Get-AzPublicIpAddress -ResourceGroupName $ResourceGroupName -Name $PublicIpAddressName -ErrorAction SilentlyContinue
         if (-not($Ipconfiguration.PIP)) {
             Write-Verbose "Adding Public-IP..."
-            $Ipconfiguration.PIP = New-AzPublicIpAddress -ResourceGroupName $ResourceGroupName -Name $PublicIpAddressName -location $ResourceLocation -AllocationMethod Static -Sku Standard
+            $Ipconfiguration.PIP = New-AzPublicIpAddress -ResourceGroupName $ResourceGroupName -Name $PublicIpAddressName -location $ResourceLocation -AllocationMethod $PublicIpAddressAllocation -Sku $PublicIpAddressSku
         }
         $Ipconfiguration.Private = New-AzApplicationGatewayFrontendIPConfig -Name $FrontEndIpConfigNamePrivate -Subnet $Subnet -PrivateIPAddress $PrivateIpAddress
         $Ipconfiguration.Public = New-AzApplicationGatewayFrontendIPConfig -Name $FrontEndIpConfigNamePublic -PublicIPAddress $Ipconfiguration.PIP
