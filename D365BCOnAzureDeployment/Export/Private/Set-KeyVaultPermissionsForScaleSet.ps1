@@ -4,6 +4,9 @@ function Global:Set-KeyVaultPermissionsForScaleSet {
         [Parameter(Mandatory = $true)]
         [string]
         $ResourceGroupName,        
+        [Parameter(Mandatory = $false)]
+        [string]
+        $KeyVaultResourceGroup = $ResourceGroupName,
         [Parameter(Mandatory = $true)]
         [string]
         $KeyVaultName,
@@ -18,12 +21,12 @@ function Global:Set-KeyVaultPermissionsForScaleSet {
             Write-Verbose "Scale Set $ScaleSetName does not exists. Stopping here."
             return
         }
-        $keyVault = Get-AzKeyVault -ResourceGroupName $ResourceGroupName -VaultName $KeyVaultName -ErrorAction SilentlyContinue         
+        $keyVault = Get-AzKeyVault -ResourceGroupName $KeyVaultResourceGroup -VaultName $KeyVaultName -ErrorAction SilentlyContinue         
         if (-not($keyVault)) {
             Write-Verbose "KeyVault $KeyVaultName does not exists. Stopping here."
             return
         }
-        Set-AzKeyVaultAccessPolicy -VaultName $KeyVaultName -ResourceGroupName $ResourceGroupName -ObjectId $VMSS.Identity.PrincipalId -PermissionsToKeys get,list -PermissionsToSecrets get,list -PermissionsToCertificates get,list,getissuers,listissuers
+        Set-AzKeyVaultAccessPolicy -VaultName $KeyVaultName -ResourceGroupName $KeyVaultResourceGroup -ObjectId $VMSS.Identity.PrincipalId -PermissionsToKeys get,list -PermissionsToSecrets get,list -PermissionsToCertificates get,list,getissuers,listissuers
         Write-Verbose "Done."
     }    
 }
