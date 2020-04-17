@@ -11,6 +11,9 @@ function Invoke-SetupCertificateAppServer {
         $StorageAccountContext,
         [Parameter(Mandatory = $true)]
         [string]
+        $KeyVaultResourceGroupName,
+        [Parameter(Mandatory = $true)]
+        [string]
         $KeyVaultName,
         [Parameter(Mandatory = $true)]
         [string]
@@ -94,11 +97,13 @@ function Invoke-SetupCertificateAppServer {
         $certificateInfo = Save-AzureCertificateToLocalFile -KeyVaultName $KeyVaultName -Certificate $certificate -CertificateType $CertificateType
         # Add Cert to My-Store
         Write-Verbose "Importing certificate to Personal-store..."
-        Import-PfxCertificate -FilePath $certificateInfo.Path -CertStoreLocation Cert:\LocalMachine\My -Password (ConvertTo-SecureString -String $certificateInfo.Password -AsPlainText -Force)
+        Import-PfxCertificate -FilePath $certificateInfo.Path -CertStoreLocation Cert:\LocalMachine\My -Password (ConvertTo-SecureString -String $certificateInfo.Password -AsPlainText -Force) | Out-Null
+        Set-CertificatePermissions -CertificateThumbprint $certificateInfo.Thumbprint
+        
         # Add Cert to Trusted Root-Store
         Write-Verbose "Importing certificate to Trusted Root-store..."
-        Import-PfxCertificate -FilePath $certificateInfo.Path -CertStoreLocation Cert:\LocalMachine\Root -Password (ConvertTo-SecureString -String $certificateInfo.Password -AsPlainText -Force)
-
+        Import-PfxCertificate -FilePath $certificateInfo.Path -CertStoreLocation Cert:\LocalMachine\Root -Password (ConvertTo-SecureString -String $certificateInfo.Password -AsPlainText -Force) | Out-Null
+        
         # Update Service Instances
         $environments = Get-EnvironmentsFromStorage -StorageAccountContext $StorageAccountContext -TableNameEnvironments $StorageTableNameEnvironments -TableNameDefaults $StorageTableNameEnvironmentDefaults -TypeFilter $TypeFilter -ConfigType Application        
         foreach ($environment in $environments) {

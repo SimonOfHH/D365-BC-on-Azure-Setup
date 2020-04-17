@@ -11,6 +11,9 @@ function Invoke-SetupCertificateWebServer {
         $StorageAccountContext,
         [Parameter(Mandatory = $true)]
         [string]
+        $KeyVaultResourceGroupName,
+        [Parameter(Mandatory = $true)]
+        [string]
         $KeyVaultName,
         [Parameter(Mandatory = $true)]
         [string]
@@ -43,6 +46,8 @@ function Invoke-SetupCertificateWebServer {
         # Add Cert to My-Store
         Write-Verbose "Importing certificate to Personal-store..."
         Import-PfxCertificate -FilePath $certificateInfo.Path -CertStoreLocation Cert:\LocalMachine\My -Password (ConvertTo-SecureString -String $certificateInfo.Password -AsPlainText -Force)
+        Set-CertificatePermissions -CertificateThumbprint $certificateInfo.Thumbprint
+        
         # Add Cert to Trusted Root-Store
         Write-Verbose "Importing certificate to Trusted Root-store..."
         Import-PfxCertificate -FilePath $certificateInfo.Path -CertStoreLocation Cert:\LocalMachine\Root -Password (ConvertTo-SecureString -String $certificateInfo.Password -AsPlainText -Force)
