@@ -5,7 +5,9 @@ function Global:Test-Parameters {
         $ObjectID,
         $SubscriptionName,
         $KeyVaultName,
-        $StorageAccountName
+        $StorageAccountName,
+        $IgnoreExistingKeyVault,
+        $IgnoreExistingStorageAccount
     )
     process {
         $somethingmissing = $false
@@ -32,8 +34,10 @@ function Global:Test-Parameters {
                 catch [System.Net.WebException] { 
                     $StatusCode = $_.Exception.Response.StatusCode.value__    
                 }
-                if ($null -ne $StatusCode) {
-                    throw "KeyVaultName $KeyVaultName is already in use."
+                if (-not($IgnoreExistingKeyVault)) {
+                    if ($null -ne $StatusCode) {
+                        throw "KeyVaultName $KeyVaultName is already in use."
+                    }
                 }
             }
         }
@@ -53,8 +57,10 @@ function Global:Test-Parameters {
                 catch [System.Net.WebException] { 
                     $StatusCode = $_.Exception.Response.StatusCode.value__    
                 }
-                if ($null -ne $StatusCode) {
-                    throw "StorageAccount name $StorageAccountName is already in use."
+                if (-not($IgnoreExistingStorageAccount)) {
+                    if ($null -ne $StatusCode) {
+                        throw "StorageAccount name $StorageAccountName is already in use."
+                    }
                 }
             }
         }
