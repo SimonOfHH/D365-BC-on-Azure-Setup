@@ -128,6 +128,8 @@ function New-LoadBalancer {
         }        
         $loadBalancer = New-AzLoadBalancer @params
 
+        Set-TagsOnResource -ResourceGroupName $ResourceGroupName -ResourceName $LoadBalancerName -Tags $Tags
+
         # Add Scale Set to Backend
         $params = @{
             ResourceGroupName = $ResourceGroupName
