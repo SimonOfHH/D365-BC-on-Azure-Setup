@@ -54,6 +54,8 @@ function New-LoadBalancer {
         [Parameter(Mandatory = $false)]
         [bool]
         $UpdateScaleSet = $true,
+        [switch]
+        $EnableAcceleratedNetworking,
         [HashTable]
         $Tags
     )
@@ -78,6 +80,9 @@ function New-LoadBalancer {
             if (-not($publicIP)) {
                 Write-Verbose "Creating PublicIP..."
                 $publicIP = New-AzPublicIpAddress -ResourceGroupName $ResourceGroupName -Name $PublicIpAddressName -Location $ResourceLocation -DomainNameLabel $DomainNameLabel -AllocationMethod "Static" -Sku Standard
+                if ($Tags) {
+                    Set-TagsOnResource -ResourceGroupName $ResourceGroupName -ResourceName $PublicIpAddressName -Tags $Tags
+                }
             }     
             $frontEndArgs = @{
                 Name            = "$FrontEndIpConfigName-public"
@@ -132,10 +137,11 @@ function New-LoadBalancer {
 
         # Add Scale Set to Backend
         $params = @{
-            ResourceGroupName = $ResourceGroupName
-            LoadBalancerName  = $LoadBalancerName
-            BackendPoolName   = $BackendPoolName
-            ScaleSetName      = $VMScaleSetName
+            ResourceGroupName           = $ResourceGroupName
+            LoadBalancerName            = $LoadBalancerName
+            BackendPoolName             = $BackendPoolName
+            ScaleSetName                = $VMScaleSetName
+            EnableAcceleratedNetworking = $EnableAcceleratedNetworking
         }
         Set-LoadBalancerAssociationForScaleSet @params
     }    
