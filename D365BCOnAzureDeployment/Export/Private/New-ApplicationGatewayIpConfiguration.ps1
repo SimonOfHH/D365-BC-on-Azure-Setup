@@ -41,7 +41,10 @@ function Global:New-ApplicationGatewayIpConfigurations {
         [ValidateSet('IPv4', 'IPv6')]
         [string]
         $PrivateIpAddressVersion = 'IPv4',
-        $Subnet
+        $Subnet,
+        [Parameter(Mandatory = $false)]
+        [HashTable]
+        $Tags
     )
     process {
         Write-Verbose "Adding FrontendIP-Configuration..."
@@ -55,6 +58,9 @@ function Global:New-ApplicationGatewayIpConfigurations {
         if (-not($Ipconfiguration.PIP)) {
             Write-Verbose "Adding Public-IP..."
             $Ipconfiguration.PIP = New-AzPublicIpAddress -ResourceGroupName $ResourceGroupName -Name $PublicIpAddressName -location $ResourceLocation -AllocationMethod $PublicIpAddressAllocation -Sku $PublicIpAddressSku
+            if ($Tags){
+                Set-TagsOnResource -ResourceGroupName $ResourceGroupName -ResourceName $PublicIpAddressName -Tags $Tags
+            }
         }
         $Ipconfiguration.Private = New-AzApplicationGatewayFrontendIPConfig -Name $FrontEndIpConfigNamePrivate -Subnet $Subnet -PrivateIPAddress $PrivateIpAddress
         $Ipconfiguration.Public = New-AzApplicationGatewayFrontendIPConfig -Name $FrontEndIpConfigNamePublic -PublicIPAddress $Ipconfiguration.PIP

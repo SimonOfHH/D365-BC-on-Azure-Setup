@@ -147,6 +147,9 @@ function New-ApplicationGateway {
             PrivateIpAddressVersion     = $PrivateIpAddressVersion
             Subnet                      = $NetworkSetup.Subnet
         }
+        if ($Tags) {
+            $params.Add("Tags", $Tags)
+        }
         $IpConfiguration = New-ApplicationGatewayIpConfigurations @params -Verbose:$Verbose
 
         # Create HttpListeners
