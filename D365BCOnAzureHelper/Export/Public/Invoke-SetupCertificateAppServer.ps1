@@ -86,7 +86,7 @@ function Invoke-SetupCertificateAppServer {
         }
         Write-Verbose "Setting up certificate..."
         Write-Verbose "Checking if certificate exists..."
-        $certificate = Get-AzKeyVaultCertificate -VaultName $KeyVaultName -Name $CertificateType -ErrorAction SilentlyContinue        
+        $certificate = Get-AzKeyVaultCertificate -VaultName $KeyVaultName -Name $CertificateType -ErrorAction SilentlyContinue
         if (-not($certificate)) {
             Write-Verbose "Certificate does not exist. Exiting here."
             return
