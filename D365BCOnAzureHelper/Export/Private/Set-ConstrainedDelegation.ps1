@@ -40,7 +40,7 @@ function Global:Set-ConstrainedDelegation {
             # Get the User-object from the ActiveDirectory and include registered SPNs
             $user = Get-ADUser $serviceUsername -Properties servicePrincipalName
             # Add all registered SPNs to a String-array
-            $user.servicePrincipalName | Where-Object { $_ -match $lbHostName } | % { $spns += $_.ToString() }
+            $user.servicePrincipalName | Where-Object { $_ -match $lbHostName } | ForEach-Object { $spns += $_.ToString() }
             $computerNamePrefix = "$($computerNamePrefix)*"
             foreach ($computer in Get-ADComputer -Filter { name -like $computerNamePrefix }) {
                 Write-Verbose "Enabling delegation on: $($computer.Name)"
