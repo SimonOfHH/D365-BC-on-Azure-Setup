@@ -31,6 +31,7 @@ function Global:Import-NecessaryModules {
             $path = "C:\Program Files\Microsoft Dynamics *\*\Web Client\Modules\NAVWebClientManagement\NAVWebClientManagement.psm1"
             $modulePath = (Get-ChildItem -Path $path | Select-Object -First 1).FullName
             Import-Module -Name $modulePath
+            Import-Module WebAdministration
         }
     }
     $VerbosePreference = $oldVerbosePreference
