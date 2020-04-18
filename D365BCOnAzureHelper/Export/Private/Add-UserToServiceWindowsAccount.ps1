@@ -15,7 +15,7 @@ function Global:Add-UserToServiceWindowsAccount {
         $User
     )
     process {
-        if (-not (Get-NAVServerUser -ServerInstance $Environment.ServerInstance | Where-Object { $_.WindowsAccount -like $User.Username })) {
+        if (-not (Get-NAVServerUser -ServerInstance $Environment.ServerInstance | Where-Object { $_.UserName -like $User.Username })) {
             Write-Verbose "Creating user $($User.Username) (Windows-account)..."
             New-NAVServerUser -ServerInstance $Environment.ServerInstance -Tenant default -WindowsAccount $User.Username -FullName $User.Fullname
         }
