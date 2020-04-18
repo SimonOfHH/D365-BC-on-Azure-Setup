@@ -54,7 +54,7 @@ function Invoke-SetupCertificateAppServer {
                     $config | ForEach-Object { $currentConf[$_.key] = $_.value }
 
                     $updated = $false
-                    $updated = $updated -or (Set-NAVConfigurationIfDifferent -ServerInstance $environment.ServerInstance -KeyName ServicesCertificateThumbprint -KeyValue $CertificateInfo.Thumbprint -CurrentConfiguration $currentConf -Verbose)
+                    $updated = $updated -or (Set-NAVConfigurationIfDifferent -ServerInstance $environment.ServerInstance -KeyName ServicesCertificateThumbprint -KeyValue "$($CertificateInfo.Thumbprint)" -CurrentConfiguration $currentConf -Verbose)
                 
                     # Update SSL-related settings
                     foreach ($key in $environment.Settings.Keys | Where-Object { $_ -like '*SSL*' }) {
@@ -66,7 +66,7 @@ function Invoke-SetupCertificateAppServer {
                                 }
                             }
                             if (-not($skipUpdate)) {
-                                $updated = $updated -or (Set-NAVConfigurationIfDifferent -ServerInstance $environment.ServerInstance -KeyName $key -KeyValue $environment.Settings[$key] -CurrentConfiguration $currentConf -Verbose)
+                                $updated = $updated -or (Set-NAVConfigurationIfDifferent -ServerInstance $environment.ServerInstance -KeyName $key -KeyValue "$($environment.Settings[$key])" -CurrentConfiguration $currentConf -Verbose)
                                 # Update Current Config
                                 $currentConf[$key] = $environment.Settings[$key]
                             }
