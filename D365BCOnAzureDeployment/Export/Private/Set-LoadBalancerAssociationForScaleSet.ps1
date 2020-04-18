@@ -20,7 +20,9 @@ function Global:Set-LoadBalancerAssociationForScaleSet {
         $BackendPoolName,
         [Parameter(Mandatory = $true)]
         [string]
-        $ScaleSetName
+        $ScaleSetName,
+        [switch]
+        $EnableAcceleratedNetworking
     )
     process {
         Write-Verbose "Starting association of Load Balancer $LoadBalancerName to Scale Set $ScaleSetName Network Interface..."
@@ -51,7 +53,7 @@ function Global:Set-LoadBalancerAssociationForScaleSet {
         $VMScaleSet = Remove-AzVmssNetworkInterfaceConfiguration -VirtualMachineScaleSet $VMScaleSet -Name $NetworkInterfaceConfig.Name
         # Add the updated configuration back to the Scale Set-object
         Write-Verbose "Adding NetworkInterfaceConfiguration from Scale Set $ScaleSetName"
-        $VMScaleSet = Add-AzVmssNetworkInterfaceConfiguration -VirtualMachineScaleSet $VMScaleSet -IpConfiguration $ipConfig -Name $NetworkInterfaceConfig.Name -Primary $true -EnableAcceleratedNetworking
+        $VMScaleSet = Add-AzVmssNetworkInterfaceConfiguration -VirtualMachineScaleSet $VMScaleSet -IpConfiguration $ipConfig -Name $NetworkInterfaceConfig.Name -Primary $true -EnableAcceleratedNetworking:$EnableAcceleratedNetworking
         
         # Update the Scale Set
         Write-Verbose "Scale Set needs to be stopped and started again so that all Instances can be updated and get the new IP Configuration."
