@@ -23,7 +23,7 @@ function Global:Get-CommandsFromStorageTable {
         $setupCloudTable = $setupTable.CloudTable
         $rows = Get-AzTableRow -Table $setupCloudTable | Where-Object { ($_.ObjectName -eq 'NULL') -or ($_.ObjectName -eq '') -or ($_.ObjectName -eq $ObjectName) } | Sort-Object -Property PartitionKey, RowKey
         if ($TypeFilter) {
-            $rows = $rows | Where-Object { ($_.TypeFilter -eq '') -or ($_.TypeFilter -eq $TypeFilter) } | Sort-Object -Property PartitionKey, RowKey
+            $rows = Get-AzTableRow -Table $setupCloudTable | Where-Object { (($_.ObjectName -eq 'NULL') -or ($_.ObjectName -eq '') -or ($_.ObjectName -eq $ObjectName)) -and ( ($_.TypeFilter -eq '') -or ($_.TypeFilter -eq $TypeFilter)) } | Sort-Object -Property PartitionKey, RowKey
         }
         $rows
     }
