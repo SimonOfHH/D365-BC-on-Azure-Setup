@@ -190,6 +190,9 @@ function New-ScaleSetImage {
             $vm = Get-AzVM -Name $VirtualMachineName -ResourceGroupName $ResourceGroupName
             $image = New-AzImageConfig -Location $ResourceLocation -SourceVirtualMachineId $vm.ID
             New-AzImage -Image $image -ImageName $ImageName -ResourceGroupName $ResourceGroupName | Out-Null
+            if ($ResourceTags) {
+                Set-TagsOnResource -ResourceGroupName $ResourceGroupName -ResourceName $ImageName -Tags $ResourceTags
+            }
             Write-Verbose "Done."
 
             Clear-ScaleSetPreparationResources -ResourceGroupName $ResourceGroupName -Tag $ResourceTags -Verbose:$Verbose
