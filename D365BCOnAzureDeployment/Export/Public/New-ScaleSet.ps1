@@ -50,6 +50,9 @@ function New-ScaleSet {
         [Parameter(Mandatory = $false)]
         [string]
         $VmSize,
+        [Parameter(Mandatory = $false)]
+        [bool]
+        $EnableAcceleratedNetworking = $false,
         [int]
         [Parameter(Mandatory = $false)]
         $InstanceCount = 2,
@@ -97,17 +100,18 @@ function New-ScaleSet {
             $domainName = (Get-AzKeyVaultSecret -VaultName $KeyVaultName -Name 'DomainName').SecretValueText
 
             $vmssSettings = @{
-                VmSsName            = $ScaleSetName
-                VmSize              = $VmSize
-                InstanceCount       = "$InstanceCount"
-                VmAdminUserName     = $VmAdminUserName
-                VmAdminPassword     = $VmAdminPassword
-                BaseImageId         = $image.Id
-                VirtualNetworkName  = $VirtualNetworkName
-                SubnetName          = $SubnetName
-                DomainName          = $domainName
-                DomainAdminUsername = "$domainName\$domainAdminUserName"
-                DomainAdminPassword = $domainAdminUserPass
+                VmSsName                    = $ScaleSetName
+                VmSize                      = $VmSize
+                InstanceCount               = "$InstanceCount"
+                VmAdminUserName             = $VmAdminUserName
+                VmAdminPassword             = $VmAdminPassword
+                BaseImageId                 = $image.Id
+                VirtualNetworkName          = $VirtualNetworkName
+                SubnetName                  = $SubnetName
+                DomainName                  = $domainName
+                DomainAdminUsername         = "$domainName\$domainAdminUserName"
+                DomainAdminPassword         = $domainAdminUserPass
+                EnableAcceleratedNetworking = $EnableAcceleratedNetworking
             }
             if ($VirtualNetworkResourceGroup) {
                 $vmssSettings.Add("VirtualNetworkResourceGroup", $VirtualNetworkResourceGroup)
