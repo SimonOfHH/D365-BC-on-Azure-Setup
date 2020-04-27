@@ -17,7 +17,7 @@ function Install-BusinessCentral {
         [Parameter(Mandatory = $false)]
         [string]
         $LicenseFilename,
-        [ValidateSet('App', 'Web')]
+        [ValidateSet('App', 'Web', 'Both')]
         [Parameter(Mandatory = $false)]
         [string]
         $InstallationType = "App",

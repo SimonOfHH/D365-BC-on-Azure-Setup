@@ -9,7 +9,7 @@ function Global:Get-BusinessCentralDefaultInstallConfig {
     #>
     param(       
         [Parameter(Mandatory = $false)]
-        [ValidateSet('App', 'Web')]
+        [ValidateSet('App', 'Web', 'Both')]
         [string]
         $InstallationType = 'App',
         [Parameter(Mandatory = $false)]
@@ -37,13 +37,11 @@ function Global:Get-BusinessCentralDefaultInstallConfig {
 
         $componentSettings = @()
         $parameters = @()
-
-        if ($InstallationType -eq 'App') { # Default Application Server config
-            Get-BusinessCentralDefaultAppServerConfig -BusinessCentralVersion $BusinessCentralVersion -ComponentSettings ([ref]$componentSettings) -Parameters ([ref]$parameters)
-                        
-        } else { # Default Web Server config
-            Get-BusinessCentralDefaultWebServerConfig -BusinessCentralVersion $BusinessCentralVersion -ComponentSettings ([ref]$componentSettings) -Parameters ([ref]$parameters)            
-        }
+        switch ($InstallationType) {
+            'App' { Get-BusinessCentralDefaultAppServerConfig -BusinessCentralVersion $BusinessCentralVersion -ComponentSettings ([ref]$componentSettings) -Parameters ([ref]$parameters) }
+            'Web' { Get-BusinessCentralDefaultWebServerConfig -BusinessCentralVersion $BusinessCentralVersion -ComponentSettings ([ref]$componentSettings) -Parameters ([ref]$parameters) }
+            'Both' { Get-BusinessCentralDefaultServerConfig -BusinessCentralVersion $BusinessCentralVersion -ComponentSettings ([ref]$componentSettings) -Parameters ([ref]$parameters) }
+        } 
         
         # Start the Root Element
         $xmlWriter.WriteStartElement("Configuration")
