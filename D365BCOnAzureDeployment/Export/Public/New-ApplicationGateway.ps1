@@ -108,11 +108,12 @@ function New-ApplicationGateway {
         $environments = Get-EnvironmentsFromStorage -StorageAccountContext $storageAccountContext -TableNameEnvironments $TableNameEnvironments -TypeFilter $EnvironmentTypeFilter -EnvironmentsOnly -Verbose:$Verbose
 
         $params = @{
-            ResourceGroupName      = $KeyVaultResourceGroup
-            ResourceLocation       = $ResourceLocation
-            ApplicationGatewayName = $ApplicationGatewayName
-            KeyVaultName           = $KeyVaultName
-            CertificateName        = $CertificateName
+            ResourceGroupName         = $KeyVaultResourceGroup
+            ResourceLocation          = $ResourceLocation
+            ApplicationGatewayName    = $ApplicationGatewayName
+            KeyVaultName              = $KeyVaultName
+            CertificateName           = $CertificateName
+            ApplicationGatewaySkuName = $ApplicationGatewaySkuName
         }
         $SslSetup = Get-ApplicationGatewaySslSetupAndIdentity @params
 
