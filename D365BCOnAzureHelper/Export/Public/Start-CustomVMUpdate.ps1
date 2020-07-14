@@ -53,7 +53,7 @@ function Start-CustomVMUpdate {
         
         # The current instance might still be in creation mode and might also automatically restart during this state
         # This will wait until the instance is marked as "ProvisioningState"="Succeeded"
-        Wait-ForInstanceAvailability -ResourceGroupName $ResourceGroupName -ScaleSetName $ObjectName -NewInstanceMarkerFilename $NewInstanceMarkerFilename -Verbose:$Verbose
+        Wait-ForInstanceAvailability -ResourceGroupName $ResourceGroupName -ScaleSetName $ObjectName -NewInstanceMarkerFilename $NewInstanceMarkerFilename -IsScaleSet:$IsScaleSet -Verbose:$Verbose
 
         # Disable Internet Explorer Enhanced Security Configuration (for Admins only) - because it's annoying
         if ($NewInstanceMarkerFilename) {
@@ -95,7 +95,7 @@ function Start-CustomVMUpdate {
                 Write-Verbose "Command $($row.Command) was already executed. Skipping to next one."
                 continue
             }
-            $infrastructureData = Get-InfrastructureDataFromStorage -StorageAccountContext $storageAccountCtx -TableNameInfrastructureData $StorageTableNameInfrastructureData -TypeFilter $row.Parameter1
+            $infrastructureData = Get-InfrastructureDataFromStorage -StorageAccountContext $storageAccountCtx -TableNameInfrastructureData $StorageTableNameInfrastructureData -TypeFilter $TypeFilter
             Write-Verbose "Handling Command: $($row.Command)"
             switch ($row.Command) {
                 'SetupNotDone' {
@@ -116,7 +116,7 @@ function Start-CustomVMUpdate {
                         KeyVaultName                        = $KeyVaultName
                         StorageTableNameEnvironments        = $TableNameEnvironments 
                         StorageTableNameEnvironmentDefaults = $TableNameEnvironmentDefaults
-                        TypeFilter                          = $row.TypeFilter
+                        TypeFilter                          = $TypeFilter
                     }
                     Invoke-CreateInstances @params -Verbose:$Verbose
                 }
@@ -127,7 +127,7 @@ function Start-CustomVMUpdate {
                         KeyVaultName                        = $KeyVaultName
                         StorageTableNameEnvironments        = $TableNameEnvironments 
                         StorageTableNameEnvironmentDefaults = $TableNameEnvironmentDefaults
-                        TypeFilter                          = $row.TypeFilter
+                        TypeFilter                          = $TypeFilter
                         Parameter2                          = $row.Parameter2
                         RestartService                      = $row.RestartNecessary
                     }
@@ -140,7 +140,7 @@ function Start-CustomVMUpdate {
                         KeyVaultName                        = $KeyVaultName
                         StorageTableNameEnvironments        = $TableNameEnvironments 
                         StorageTableNameEnvironmentDefaults = $TableNameEnvironmentDefaults
-                        TypeFilter                          = $row.TypeFilter
+                        TypeFilter                          = $TypeFilter
                         Parameter2                          = $row.Parameter2
                         RestartService                      = $row.RestartNecessary
                     }
@@ -153,7 +153,7 @@ function Start-CustomVMUpdate {
                         KeyVaultName                        = $KeyVaultName
                         StorageTableNameEnvironments        = $TableNameEnvironments 
                         StorageTableNameEnvironmentDefaults = $TableNameEnvironmentDefaults
-                        TypeFilter                          = $row.TypeFilter
+                        TypeFilter                          = $TypeFilter
                         Parameter2                          = $row.Parameter2
                         InfrastructureData                  = $infrastructureData
                     }
@@ -166,7 +166,7 @@ function Start-CustomVMUpdate {
                         KeyVaultName                        = $KeyVaultName
                         StorageTableNameEnvironments        = $TableNameEnvironments 
                         StorageTableNameEnvironmentDefaults = $TableNameEnvironmentDefaults
-                        TypeFilter                          = $row.TypeFilter
+                        TypeFilter                          = $TypeFilter
                         Parameter2                          = $row.Parameter2
                         InfrastructureData                  = $infrastructureData
                     }
@@ -177,7 +177,7 @@ function Start-CustomVMUpdate {
                         StorageAccountContext     = $storageAccountCtx
                         KeyVaultResourceGroupName = $KeyVaultResourceGroupName
                         KeyVaultName              = $KeyVaultName
-                        TypeFilter                = $row.TypeFilter
+                        TypeFilter                = $TypeFilter
                         Parameter2                = $row.Parameter2
                         InfrastructureData        = $infrastructureData
                     }
@@ -195,7 +195,7 @@ function Start-CustomVMUpdate {
                     $params = @{
                         StorageAccountContext        = $storageAccountCtx
                         StorageTableNameEnvironments = $TableNameEnvironments 
-                        TypeFilter                   = $row.TypeFilter
+                        TypeFilter                   = $TypeFilter
                         KeyVaultResourceGroupName    = $KeyVaultResourceGroupName
                         KeyVaultName                 = $KeyVaultName
                         InfrastructureData           = $infrastructureData
@@ -208,13 +208,39 @@ function Start-CustomVMUpdate {
                         KeyVaultResourceGroupName    = $KeyVaultResourceGroupName
                         KeyVaultName                 = $KeyVaultName
                         StorageTableNameEnvironments = $TableNameEnvironments 
-                        TypeFilter                   = $row.TypeFilter
+                        TypeFilter                   = $TypeFilter
                     }
                     Invoke-RestartServices @params -Verbose:$Verbose
                 }
                 'RestartIIS' {
                     Write-Verbose "Restarting IIS service (using 'iisreset')"
                     Invoke-Command -Scriptblock { iisreset }
+                }
+                'AddIIS' {
+                    $params = @{
+                        StorageAccountContext               = $storageAccountCtx
+                        KeyVaultResourceGroupName           = $KeyVaultResourceGroupName
+                        KeyVaultName                        = $KeyVaultName
+                        StorageTableNameEnvironments        = $TableNameEnvironments 
+                        StorageTableNameEnvironmentDefaults = $TableNameEnvironmentDefaults
+                        TypeFilter                          = $TypeFilter
+                        Parameter2                          = $row.Parameter2
+                        InfrastructureData                  = $infrastructureData
+                    }
+                    Invoke-AddIIS @params -Verbose:$Verbose
+                }
+                'UpdateIIS' {
+                    $params = @{
+                        StorageAccountContext               = $storageAccountCtx
+                        KeyVaultResourceGroupName           = $KeyVaultResourceGroupName
+                        KeyVaultName                        = $KeyVaultName
+                        StorageTableNameEnvironments        = $TableNameEnvironments 
+                        StorageTableNameEnvironmentDefaults = $TableNameEnvironmentDefaults
+                        TypeFilter                          = $TypeFilter
+                        Parameter2                          = $row.Parameter2
+                        InfrastructureData                  = $infrastructureData
+                    }
+                    Invoke-AddIIS @params -Verbose:$Verbose
                 }
                 'AddUsers' {
                     $params = @{
@@ -224,19 +250,36 @@ function Start-CustomVMUpdate {
                         StorageTableNameEnvironments        = $TableNameEnvironments 
                         StorageTableNameEnvironmentDefaults = $TableNameEnvironmentDefaults
                         StorageTableNameUsers               = $TableNameUsers
-                        TypeFilter                          = $row.TypeFilter
+                        TypeFilter                          = $TypeFilter
                     }
                     Invoke-AddUsers @params -Verbose:$Verbose
                 }
                 'AddLocalAdminUser' {
                     if ($row.Parameter1) {
-                        Write-Verbose "Adding '$($row.Parameter1)' to local Administrator group"
-                        Add-LocalGroupMember -Group "Administrators" -Member $row.Parameter1
+                        if (-not(Get-LocalGroupMember -Group "Administrators" -Member $row.Parameter1 -ErrorAction SilentlyContinue)) {
+                            Write-Verbose "Adding '$($row.Parameter1)' to local Administrator group"
+                            Add-LocalGroupMember -Group "Administrators" -Member $row.Parameter1
+                        }
                     }
                     if ($row.Parameter2) {
-                        Write-Verbose "Adding '$($row.Parameter2)' to local Administrator group"
-                        Add-LocalGroupMember -Group "Administrators" -Member $row.Parameter2
+                        if (-not(Get-LocalGroupMember -Group "Administrators" -Member $row.Parameter1 -ErrorAction SilentlyContinue)) {
+                            Write-Verbose "Adding '$($row.Parameter2)' to local Administrator group"
+                            Add-LocalGroupMember -Group "Administrators" -Member $row.Parameter2
+                        }
                     }
+                }
+                'AddAddins'{
+                    $params = @{
+                        StorageAccountContext               = $storageAccountCtx
+                        KeyVaultResourceGroupName           = $KeyVaultResourceGroupName
+                        KeyVaultName                        = $KeyVaultName
+                        StorageTableNameEnvironments        = $TableNameEnvironments 
+                        StorageTableNameEnvironmentDefaults = $TableNameEnvironmentDefaults
+                        TypeFilter                          = $TypeFilter
+                        Parameter2                          = $row.Parameter2
+                        RestartService                      = $row.RestartNecessary
+                    }
+                    Invoke-AddAddIns @params -Verbose:$Verbose
                 }
                 'SetupCertificate' {
                     $params = @{
@@ -245,7 +288,7 @@ function Start-CustomVMUpdate {
                         KeyVaultName                        = $KeyVaultName
                         StorageTableNameEnvironments        = $TableNameEnvironments 
                         StorageTableNameEnvironmentDefaults = $TableNameEnvironmentDefaults 
-                        TypeFilter                          = $row.TypeFilter
+                        TypeFilter                          = $TypeFilter
                         CertificateType                     = ""
                         RestartService                      = $row.RestartNecessary
                     }
@@ -255,6 +298,13 @@ function Start-CustomVMUpdate {
                             Invoke-SetupCertificateAppServer @params -Verbose:$Verbose
                         }
                         'Web' { 
+                            $params.CertificateType = "Webclient"
+                            Invoke-SetupCertificateWebServer @params -Verbose:$Verbose
+                        }
+                        'Both' { 
+                            $params.CertificateType = "ServiceInstance"
+                            Invoke-SetupCertificateAppServer @params -Verbose:$Verbose
+                            
                             $params.CertificateType = "Webclient"
                             Invoke-SetupCertificateWebServer @params -Verbose:$Verbose
                         }
