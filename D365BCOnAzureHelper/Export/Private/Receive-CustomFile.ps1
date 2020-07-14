@@ -20,7 +20,7 @@ function Global:Receive-CustomFile {
     }
     $ParentDirectory = Split-Path $DestinationFile -Parent
     if (-not (Test-Path $ParentDirectory)){
-        New-Item -Path $ParentDirectory -ItemType Directory
+        New-Item -Path $ParentDirectory -ItemType Directory | Out-Null
     }
     Write-Verbose "Download file..."
     $wc = New-Object System.Net.WebClient

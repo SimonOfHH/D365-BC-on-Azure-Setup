@@ -37,6 +37,10 @@ function Invoke-UpdateWebInstances {
         foreach ($environment in $environments) {
             $serverInstanceName = "$($environment.ServerInstance)-Web"
             if (Get-NAVWebServerInstance -WebServerInstance $serverInstanceName) { 
+                Set-NAVWebServerInstanceConfiguration -WebServerInstance $serverInstanceName -KeyName Server -KeyValue $InfrastructureData.ApplicationServerLoadBalancerHostName
+                Set-NAVWebServerInstanceConfiguration -WebServerInstance $serverInstanceName -KeyName ServerInstance -KeyValue $environment.ServerInstance
+                Set-NAVWebServerInstanceConfiguration -WebServerInstance $serverInstanceName -KeyName ClientServicesCredentialType -KeyValue $environment.Authentication
+                Set-NAVWebServerInstanceConfiguration -WebServerInstance $serverInstanceName -KeyName ClientServicesPort -KeyValue $environment.ClientServicesPort                
                 foreach ($key in $environment.Settings.Keys) {
                     Set-NAVWebServerInstanceConfiguration -WebServerInstance $serverInstanceName -KeyName $key -KeyValue $environment.Settings[$key]
                 }
