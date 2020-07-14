@@ -79,7 +79,7 @@ function New-LoadBalancer {
             $publicIP = Get-AzPublicIpAddress -ResourceGroupName $ResourceGroupName -Name $PublicIpAddressName -ErrorAction SilentlyContinue
             if (-not($publicIP)) {
                 Write-Verbose "Creating PublicIP..."
-                $publicIP = New-AzPublicIpAddress -ResourceGroupName $ResourceGroupName -Name $PublicIpAddressName -Location $ResourceLocation -DomainNameLabel $DomainNameLabel -AllocationMethod "Static" -Sku Standard
+                $publicIP = New-AzPublicIpAddress -ResourceGroupName $ResourceGroupName -Name $PublicIpAddressName -Location $ResourceLocation -DomainNameLabel $DomainNameLabel -AllocationMethod "Static" -Sku Standard -Tag $Tags
                 if ($Tags) {
                     Set-TagsOnResource -ResourceGroupName $ResourceGroupName -ResourceName $PublicIpAddressName -Tags $Tags
                 }
@@ -125,6 +125,9 @@ function New-LoadBalancer {
             Location                = $resourceLocation 
             FrontendIpConfiguration = $frontendConfig 
             BackendAddressPool      = $backendpool
+        }
+        if ($Tags) {
+            $params.Add("Tag", $Tags)
         }
         if ($PublicIpAddressName) {
             $params.Add("Probe", $probe)

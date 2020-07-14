@@ -66,7 +66,9 @@ function New-ScaleSet {
         [string]
         $TemplateUri = "https://raw.githubusercontent.com/SimonOfHH/ARM-Templates/master/Templates/D365BCOnAzure/VMSS-Default.json",
         [switch]
-        $AsJob
+        $AsJob,
+        [switch]
+        $AddTagsWithTemplate
     )
     $scriptBlock = {
         $oldErrorActionPreference = $ErrorActionPreference
@@ -113,6 +115,9 @@ function New-ScaleSet {
                 DomainAdminPassword         = $domainAdminUserPass
                 EnableAcceleratedNetworking = $EnableAcceleratedNetworking
             }
+            if ($AddTagsWithTemplate){
+                $vmssSettings.Add("resourceTags", $ResourceTags)
+            }
             if ($VirtualNetworkResourceGroup) {
                 $vmssSettings.Add("VirtualNetworkResourceGroup", $VirtualNetworkResourceGroup)
             }
@@ -132,7 +137,7 @@ function New-ScaleSet {
             New-AzResourceGroupDeployment @deployParams | Out-Null            
         }
         catch {
-
+            Write-Error $_
         }
         Set-TagsOnResource -ResourceGroupName $ResourceGroupName -ResourceName $ScaleSetName -Tags $ResourceTags
 

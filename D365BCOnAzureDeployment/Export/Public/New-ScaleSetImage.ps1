@@ -26,7 +26,7 @@ function New-ScaleSetImage {
         [Parameter(Mandatory = $true)]
         [string]
         $VirtualMachineName,
-        [Parameter(Mandatory = $true)]
+        [Parameter(Mandatory = $false)]
         [string]
         $ScaleSetName,
         [Parameter(Mandatory = $false)]
@@ -73,7 +73,7 @@ function New-ScaleSetImage {
         [string]
         $VmOperatingSystem,
         [Parameter(Mandatory = $true)]
-        [ValidateSet('App', 'Web')]
+        [ValidateSet('App', 'Web', 'Both')]
         [string]
         $InstallationType,
         [Parameter(Mandatory = $false)]

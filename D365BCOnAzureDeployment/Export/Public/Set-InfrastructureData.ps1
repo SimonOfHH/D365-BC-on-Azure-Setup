@@ -30,7 +30,10 @@ function Set-InfrastructureData {
         $StorageAccountName,
         [Parameter(Mandatory = $true)]
         [string]
-        $TableNameInfrastructure
+        $TableNameInfrastructure,
+        [Parameter(Mandatory = $false)]
+        [string]
+        $TypeFilter
     )
     process {
         Write-Verbose "Updating Infrastructure table..."
@@ -50,7 +53,14 @@ function Set-InfrastructureData {
         $storageAccountContext = $storageAccount.Context
         $storageAccountTable = Get-AzStorageTable -Name $TableNameInfrastructure -Context $storageAccountContext
         $cloudTable = $storageAccountTable.CloudTable
-        $row = Get-AzTableRow -Table $cloudTable | Select-Object -First 1
+        if (-not([string]::IsNullOrEmpty($TypeFilter))) {
+            $row = Get-AzTableRow -Table $cloudTable | Select-Object -First 1
+        } else {
+            $row = Get-AzTableRow -Table $cloudTable | Where-Object { ($_.Type -eq $TypeFilter) }
+            if (-not($row)) {
+                $row = Get-AzTableRow -Table $cloudTable | Select-Object -First 1
+            }
+        }        
         $row.ApplicationServerLoadBalancerIP = $loadBalancerIpAddress
         $row.AppServerComputerNamePrefix = $appScaleSetPrefix
         $row.WebServerComputerNamePrefix = $webScaleSetPrefix
