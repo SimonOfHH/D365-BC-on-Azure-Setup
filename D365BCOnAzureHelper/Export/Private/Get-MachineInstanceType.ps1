@@ -12,11 +12,14 @@ function Global:Get-MachineInstanceType {
         $InfrastructureData        
     )
     process {        
-        if ($env:computername.StartsWith($infrastructureData.AppServerComputerNamePrefix)){
+        if ($env:computername.ToLower().StartsWith($infrastructureData.AppServerComputerNamePrefix.ToLower())){
             "Application"
         }
-        if ($env:computername.StartsWith($infrastructureData.WebserverComputerNamePrefix)){
+        if ($env:computername.ToLower().StartsWith($infrastructureData.WebserverComputerNamePrefix.ToLower())){
             "Web"
+        }
+        if ($infrastructureData.WebserverComputerNamePrefix.ToLower() -eq $infrastructureData.AppServerComputerNamePrefix.ToLower()){
+            "Both"
         }
     }
 }
