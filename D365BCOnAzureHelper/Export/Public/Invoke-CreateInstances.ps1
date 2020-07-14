@@ -35,7 +35,9 @@ function Invoke-CreateInstances {
                         $Environment,
                         [Parameter(Mandatory = $true)]
                         [string]
-                        $KeyVaultName
+                        $KeyVaultName,
+                        [Parameter(Mandatory = $true)]
+                        $CredentialsObject
                     )
                     Write-Verbose "Creating instance: $($environment.ServerInstance)"
                 
@@ -54,12 +56,12 @@ function Invoke-CreateInstances {
                     Set-NAVServerConfiguration -ServerInstance $environment.ServerInstance -KeyName ClientServicesCredentialType -KeyValue $environment.Authentication -Verbose:$Verbose
 
                     Write-Verbose "Updating service-account..."
-                    $params = @{KeyVaultName = $KeyVaultName }
-                    if (-not([string]::IsNullOrEmpty($environment.KVCredentialIdentifier))) {
-                        $params.Add("KVIdentifier", $environment.KVCredentialIdentifier)
-                    }
-                    $credentialsObject = Get-ServiceUserCredentialsObject @params -Verbose:$Verbose
-                    Set-NAVServerInstance -ServerInstance $environment.ServerInstance -ServiceAccount User -ServiceAccountCredential $credentialsObject -Verbose:$Verbose
+                    #$params = @{KeyVaultName = $KeyVaultName }
+                    #if (-not([string]::IsNullOrEmpty($environment.KVCredentialIdentifier))) {
+                    #    $params.Add("KVIdentifier", $environment.KVCredentialIdentifier)
+                    #}
+                    #$credentialsObject = Get-ServiceUserCredentialsObject @params -Verbose:$Verbose
+                    Set-NAVServerInstance -ServerInstance $environment.ServerInstance -ServiceAccount User -ServiceAccountCredential $CredentialsObject -Verbose:$Verbose
 
                     foreach ($key in $environment.Settings.Keys) {
                         if ((-not([string]::IsNullOrEmpty($key))) -and (-not([string]::IsNullOrEmpty($environment.Settings[$key])))) {
@@ -82,11 +84,18 @@ function Invoke-CreateInstances {
                 # This call needs to be done as job, because otherwise the underlying assembly will cause the transcription to stop and we won't have any log then
                 $initScriptBlock = {                    
                     Import-Module D365BCOnAzureHelper
-                    Import-Module Az.Accounts, Az.KeyVault
+                    #Import-Module Az.Accounts, Az.KeyVault
                     Import-NecessaryModules -Type Application
                 }
+                Write-Verbose "Loading service-account..."
+                $params = @{KeyVaultName = $KeyVaultName }
+                if (-not([string]::IsNullOrEmpty($environment.KVCredentialIdentifier))) {
+                    $params.Add("KVIdentifier", $environment.KVCredentialIdentifier)
+                }
+                $credentialsObject = Get-ServiceUserCredentialsObject @params -Verbose:$Verbose
+                    
                 $scriptBlock = Get-ScriptblockForJob
-                $job = Start-Job -ScriptBlock $scriptBlock -InitializationScript $initScriptBlock -ArgumentList $environment, $KeyVaultName
+                $job = Start-Job -ScriptBlock $scriptBlock -InitializationScript $initScriptBlock -ArgumentList $environment, $KeyVaultName, $credentialsObject
                 $job | Receive-Job -Wait -Verbose:$Verbose
                 $VerboseOutput = $job.ChildJobs[0].verbose.readall()
                 Write-Verbose "Printing verbose-output from job: "                

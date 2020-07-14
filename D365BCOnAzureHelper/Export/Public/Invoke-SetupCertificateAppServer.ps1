@@ -111,7 +111,7 @@ function Invoke-SetupCertificateAppServer {
                 # This call needs to be done as job, because otherwise the underlying assembly will cause the transcription to stop and we won't have any log then
                 $initScriptBlock = {                    
                     Import-Module D365BCOnAzureHelper
-                    Import-Module Az.Accounts, Az.KeyVault
+                    #Import-Module Az.Accounts, Az.KeyVault
                     Import-NecessaryModules -Type Application
                 }
                 $scriptBlock = Get-ScriptblockForJob

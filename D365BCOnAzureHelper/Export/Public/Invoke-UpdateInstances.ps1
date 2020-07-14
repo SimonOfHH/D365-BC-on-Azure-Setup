@@ -44,7 +44,9 @@ function Invoke-UpdateInstances {
                         [string]
                         $KeyVaultName,
                         [boolean]
-                        $RestartService
+                        $RestartService,
+                        [Parameter(Mandatory = $true)]
+                        $CredentialsObject
                     )
                     Write-Verbose "Updating instance $($environment.ServerInstance)"
                     $config = Get-NAVServerConfiguration -ServerInstance $environment.ServerInstance
@@ -59,14 +61,15 @@ function Invoke-UpdateInstances {
                     $updated = $updated -or (Set-NAVConfigurationIfDifferent -ServerInstance $environment.ServerInstance -KeyName SOAPServicesPort -KeyValue $environment.SoapServicesPort -CurrentConfiguration $currentConf -Verbose)
                     $updated = $updated -or (Set-NAVConfigurationIfDifferent -ServerInstance $environment.ServerInstance -KeyName ClientServicesCredentialType -KeyValue $environment.Authentication -CurrentConfiguration $currentConf -Verbose)
 
-                    $params = @{KeyVaultName = $KeyVaultName }
-                    if (-not([string]::IsNullOrEmpty($environment.KVCredentialIdentifier))) {
-                        $params.Add("KVIdentifier", $environment.KVCredentialIdentifier)
-                    }
-                    $credentialsObject = Get-ServiceUserCredentialsObject @params
+                    #$params = @{KeyVaultName = $KeyVaultName }
+                    #if (-not([string]::IsNullOrEmpty($environment.KVCredentialIdentifier))) {
+                    #    $params.Add("KVIdentifier", $environment.KVCredentialIdentifier)
+                    #}
+                    #$credentialsObject = Get-ServiceUserCredentialsObject @params
+
                     $serviceAccount = (Get-NavServerInstance $environment.ServerInstance).ServiceAccount
                     if ($serviceAccount -ne $credentialsObject.UserName) {
-                        Set-NAVServerInstance -ServerInstance $environment.ServerInstance -ServiceAccount User -ServiceAccountCredential $credentialsObject | Out-Null
+                        Set-NAVServerInstance -ServerInstance $environment.ServerInstance -ServiceAccount User -ServiceAccountCredential $CredentialsObject | Out-Null
                         $updated = $true
                     }
 
@@ -104,11 +107,18 @@ function Invoke-UpdateInstances {
                 # This call needs to be done as job, because otherwise the underlying assembly will cause the transcription to stop and we won't have any log then
                 $initScriptBlock = {                    
                     Import-Module D365BCOnAzureHelper
-                    Import-Module Az.Accounts, Az.KeyVault
+                    #Import-Module Az.Accounts, Az.KeyVault
                     Import-NecessaryModules -Type Application
                 }
+                Write-Verbose "Loading service-account..."
+                $params = @{KeyVaultName = $KeyVaultName }
+                if (-not([string]::IsNullOrEmpty($environment.KVCredentialIdentifier))) {
+                    $params.Add("KVIdentifier", $environment.KVCredentialIdentifier)
+                }
+                $credentialsObject = Get-ServiceUserCredentialsObject @params -Verbose:$Verbose
+
                 $scriptBlock = Get-ScriptblockForJob
-                $job = Start-Job -ScriptBlock $scriptBlock -InitializationScript $initScriptBlock -ArgumentList $environment, $KeyVaultResourceGroupName, $KeyVaultName, $RestartService
+                $job = Start-Job -ScriptBlock $scriptBlock -InitializationScript $initScriptBlock -ArgumentList $environment, $KeyVaultResourceGroupName, $KeyVaultName, $RestartService, $credentialsObject
                 $job | Receive-Job -Wait -Verbose:$Verbose
                 $VerboseOutput = $job.ChildJobs[0].verbose.readall()
                 Write-Verbose "Printing verbose-output from job: "                
