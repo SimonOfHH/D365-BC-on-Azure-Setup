@@ -11,6 +11,9 @@ function Global:Wait-ForInstanceAvailability {
         [Parameter(Mandatory = $true)]
         [string]
         $ResourceGroupName,
+        [Parameter(Mandatory = $false)]
+        [switch]
+        $IsScaleSet,
         [Parameter(Mandatory = $true)]
         [string]
         $ScaleSetName,
@@ -24,10 +27,12 @@ function Global:Wait-ForInstanceAvailability {
             VMScaleSetName    = $ScaleSetName
             ResourceGroupName = $ResourceGroupName
         }
-        while ((Get-AzVmssVM @params | Where-Object { $_.OsProfile.ComputerName -eq $env:COMPUTERNAME }).ProvisioningState -ne "Succeeded") {        
-            Write-Verbose "Waiting for Instance-availability (checking every 5 seconds)"
-            Start-Sleep -Seconds 5
-        }        
+        if ($IsScaleSet -eq $true) {
+            while ((Get-AzVmssVM @params | Where-Object { $_.OsProfile.ComputerName -eq $env:COMPUTERNAME }).ProvisioningState -ne "Succeeded") {        
+                Write-Verbose "Waiting for Instance-availability (checking every 5 seconds)"
+                Start-Sleep -Seconds 5
+            } 
+        }
         if ($NewInstanceMarkerFilename) {
             if (Test-Path $NewInstanceMarkerFilename) {
                 Write-Verbose "New Instance indicator is set. Sleeping for 90 seconds, because there might be pending restarts"
