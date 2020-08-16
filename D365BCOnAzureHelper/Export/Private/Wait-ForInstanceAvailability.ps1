@@ -28,7 +28,11 @@ function Global:Wait-ForInstanceAvailability {
             ResourceGroupName = $ResourceGroupName
         }
         if ($IsScaleSet -eq $true) {
-            while ((Get-AzVmssVM @params | Where-Object { $_.OsProfile.ComputerName -eq $env:COMPUTERNAME }).ProvisioningState -ne "Succeeded") {        
+            $ComputerName = $env:COMPUTERNAME
+            if (-not([string]::IsNullOrEmpty($UpdatedComputerName))){
+                $ComputerName = $UpdatedComputerName # Global Varioable from Properties.ps1
+            }
+            while ((Get-AzVmssVM @params | Where-Object { $_.OsProfile.ComputerName -eq $ComputerName }).ProvisioningState -ne "Succeeded") {        
                 Write-Verbose "Waiting for Instance-availability (checking every 5 seconds)"
                 Start-Sleep -Seconds 5
             } 

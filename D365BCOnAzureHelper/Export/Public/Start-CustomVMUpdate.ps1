@@ -77,7 +77,12 @@ function Start-CustomVMUpdate {
         $TableNameEnvironmentDefaults = $infrastructureData.EnvironmentDefaultsTable
         $TableNameLog = $infrastructureData.LogTable
         $TableNameUsers = $infrastructureData.UsersTable
-
+        
+        # Workaround, for when an instance of a ScaleSet needed to get a new ComputerName
+        $ComputerName = $env:COMPUTERNAME
+        if (-not([string]::IsNullOrEmpty($UpdatedComputerName))) {
+            $ComputerName = $UpdatedComputerName # Global Varioable from Properties.ps1
+        }
         $rows = Get-CommandsFromStorageTable -StorageAccountContext $storageAccountCtx -TableName $TableNameSetup -ObjectName $ObjectName -TypeFilter $TypeFilter
         foreach ($row in $rows) {
             if ($row.Command -ne 'SetupNotDone') {
@@ -85,13 +90,13 @@ function Start-CustomVMUpdate {
                     # It's possible that we have at one point 2 instances, then remove one and later add it again
                     # The newly added instance might have the same computer name as a previous one and "previous" commands wouldn't be executed again
                     # So this function will mark the previous ones as "Obsolete"
-                    Set-StorageCommandsObsolete -StorageAccountContext $storageAccountCtx -LogTableName $TableNameLog -LogObjectName $ObjectName -LogComputerName $env:computername
+                    Set-StorageCommandsObsolete -StorageAccountContext $storageAccountCtx -LogTableName $TableNameLog -LogObjectName $ObjectName -LogComputerName $ComputerName
                     # Delete File after that, so that we know, that everything is setup as expected
                     Remove-Item $NewInstanceMarkerFilename -Force | Out-Null
                 }
             }
             Write-Verbose "Checking if Command $($row.Command) was already executed"
-            if (Get-StorageCommandExecutionLog -StorageAccountContext $storageAccountCtx -LogTableName $TableNameLog -CommandRow $row -ExecutedByName $env:computername) {
+            if (Get-StorageCommandExecutionLog -StorageAccountContext $storageAccountCtx -LogTableName $TableNameLog -CommandRow $row -ExecutedByName $ComputerName) {
                 Write-Verbose "Command $($row.Command) was already executed. Skipping to next one."
                 continue
             }
@@ -262,13 +267,13 @@ function Start-CustomVMUpdate {
                         }
                     }
                     if ($row.Parameter2) {
-                        if (-not(Get-LocalGroupMember -Group "Administrators" -Member $row.Parameter1 -ErrorAction SilentlyContinue)) {
+                        if (-not(Get-LocalGroupMember -Group "Administrators" -Member $row.Parameter2 -ErrorAction SilentlyContinue)) {
                             Write-Verbose "Adding '$($row.Parameter2)' to local Administrator group"
                             Add-LocalGroupMember -Group "Administrators" -Member $row.Parameter2
                         }
                     }
                 }
-                'AddAddins'{
+                'AddAddins' {
                     $params = @{
                         StorageAccountContext               = $storageAccountCtx
                         KeyVaultResourceGroupName           = $KeyVaultResourceGroupName
@@ -314,7 +319,7 @@ function Start-CustomVMUpdate {
                     Write-Verbose "Not implemented yet."
                 }                
             }
-            Set-StorageCommandExecuted -CommandRow $row -ExecutedByName $env:computername -StorageAccountContext $storageAccountCtx -LogTableName $TableNameLog
+            Set-StorageCommandExecuted -CommandRow $row -ExecutedByName $ComputerName -StorageAccountContext $storageAccountCtx -LogTableName $TableNameLog
         }
         Write-Verbose "Update complete"
     }
