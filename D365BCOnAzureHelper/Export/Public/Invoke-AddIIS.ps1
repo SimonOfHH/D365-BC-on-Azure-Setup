@@ -63,7 +63,7 @@ function Invoke-AddIIS {
             }
             Write-Verbose "Checking for existing binding for port $($environment.SoapServicesPort)..."
             if (-not(Get-WebBinding -Name "Default Web Site" -Protocol http -Port $environment.SoapServicesPort)) {
-                Write-Verbose "Adding binding for port $($environment.OdataServicesPort)..."
+                Write-Verbose "Adding binding for port $($environment.SoapServicesPort)..."
                 New-WebBinding -Name "Default Web Site" -IPAddress "*" -Port $environment.SoapServicesPort -Protocol http
             }    
         }
