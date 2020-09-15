@@ -49,6 +49,10 @@ function Invoke-UpdateLicenses {
             throw "No license file found."
             return
         }
+        if (-not(Test-Path -Path $targetFilename)){
+            throw "No license file found."
+            return
+        }
         Import-NecessaryModules -Type Application
         
         $environments = Get-EnvironmentsFromStorage -StorageAccountContext $storageAccountContext -TableNameEnvironments $StorageTableNameEnvironments -TableNameDefaults $StorageTableNameEnvironmentDefaults -TypeFilter $TypeFilter -ConfigType Application -EnvironmentsOnly
@@ -62,5 +66,9 @@ function Invoke-UpdateLicenses {
                 }
             }
         }
+        
+        Write-Verbose "Clearing directory..."
+        Remove-Item -Path $targetFilename -Force -ErrorAction SilentlyContinue
+        Write-Verbose "Done"
     }
 }
