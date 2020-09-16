@@ -29,12 +29,20 @@ function Global:Wait-ForInstanceAvailability {
         }
         if ($IsScaleSet -eq $true) {
             $ComputerName = $env:COMPUTERNAME
-            if (-not([string]::IsNullOrEmpty($UpdatedComputerName))){
+            if (-not([string]::IsNullOrEmpty($UpdatedComputerName))) {
                 $ComputerName = $UpdatedComputerName # Global Varioable from Properties.ps1
             }
-            while ((Get-AzVmssVM @params | Where-Object { $_.OsProfile.ComputerName -eq $ComputerName }).ProvisioningState -ne "Succeeded") {        
+            $available = (Get-AzVmssVM @params | Where-Object { $_.OsProfile.ComputerName -eq $env:COMPUTERNAME }).ProvisioningState -ne "Succeeded"
+            if (-not([string]::IsNullOrEmpty($UpdatedComputerName))) {
+                $available = $available -or ((Get-AzVmssVM @params | Where-Object { $_.OsProfile.ComputerName -eq $UpdatedComputerName }).ProvisioningState -ne "Succeeded")
+            }
+            while (-not($available)) {
                 Write-Verbose "Waiting for Instance-availability (checking every 5 seconds)"
                 Start-Sleep -Seconds 5
+                $available = (Get-AzVmssVM @params | Where-Object { $_.OsProfile.ComputerName -eq $env:COMPUTERNAME }).ProvisioningState -ne "Succeeded"
+                if (-not([string]::IsNullOrEmpty($UpdatedComputerName))) {
+                    $available = $available -or ((Get-AzVmssVM @params | Where-Object { $_.OsProfile.ComputerName -eq $UpdatedComputerName }).ProvisioningState -ne "Succeeded")
+                }
             } 
         }
         if ($NewInstanceMarkerFilename) {
