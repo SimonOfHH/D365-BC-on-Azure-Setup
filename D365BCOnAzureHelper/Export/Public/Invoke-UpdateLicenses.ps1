@@ -35,6 +35,10 @@ function Invoke-UpdateLicenses {
             return
         }
 
+        if ($Parameter2 -eq "<Cleared>") {
+            Write-Verbose "No parameter given. Exiting here."            
+            return
+        }
         if ($Parameter2 -eq "DEMO") {
             $path = "C:\Install\DVD\SQLDemoDatabase\*\Cronus.flf"
             $targetFilename = (Get-ChildItem -Path $path -Recurse | Select-Object -First 1).FullName

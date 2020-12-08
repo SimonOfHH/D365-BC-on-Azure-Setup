@@ -27,6 +27,7 @@ function Global:Wait-ForInstanceAvailability {
             VMScaleSetName    = $ScaleSetName
             ResourceGroupName = $ResourceGroupName
         }
+        <# Deactivated, because it's not completely reliable
         if ($IsScaleSet -eq $true) {
             $ComputerName = $env:COMPUTERNAME
             if (-not([string]::IsNullOrEmpty($UpdatedComputerName))) {
@@ -44,6 +45,13 @@ function Global:Wait-ForInstanceAvailability {
                     $available = $available -or ((Get-AzVmssVM @params | Where-Object { $_.OsProfile.ComputerName -eq $UpdatedComputerName }).ProvisioningState -ne "Succeeded")
                 }
             } 
+        }
+        #>
+        $UptimeInSeconds = ((get-date) - (gcim Win32_OperatingSystem).LastBootUpTime).TotalSeconds
+        while ($UptimeInSeconds -lt 300){ # Machine should be up for at least 5 minutes, because pending restarts might interrupt otherwise
+            $UptimeInSeconds = ((get-date) - (gcim Win32_OperatingSystem).LastBootUpTime).TotalSeconds
+            Write-Verbose "Waiting for machine warmup..."
+            Start-Sleep -Seconds 5
         }
         if ($NewInstanceMarkerFilename) {
             if (Test-Path $NewInstanceMarkerFilename) {

@@ -44,7 +44,10 @@ function Global:Set-StorageCommandExecuted {
         }
         if ($null -eq $properties.LogParameter2) {
             $properties.LogParameter2 = ""
-        }        
+        }
+        if ($CommandRow.Command -eq "UpdateLicense"){
+            $properties.LogParameter2 = "<Cleared>"
+        }
         $params = @{
             Table          = $logCloudTable
             PartitionKey   = $lastRow.PartitionKey
